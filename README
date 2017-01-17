@@ -1,21 +1,21 @@
 Varcalc is a calculator with the following functions:
 
-	- Values are doubles.
-	- The four basic operations are supported (+, -, *. /).
-	- Raising to a power is supported (^).
-	- Unary + and - are supported.
-	- Grouping with parentheses is supported.
-	- Named variables are supported (names are like C identifiers).
-	- Results may be printed using the print command.
+    - Values are doubles.
+    - The four basic operations are supported (+, -, *. /).
+    - Raising to a power is supported (^).
+    - Unary + and - are supported.
+    - Grouping with parentheses is supported.
+    - Named variables are supported (names are like C identifiers).
+    - Results may be printed using the print command.
 
 Varcalc skips white space, but not newlines. It reads statements, one per line.
 Newline ends a statement.
 
 Statements can be:
 
-	- <expression>
-	- print <expression>
-	- empty
+    - <expression>
+    - print <expression>
+    - empty
 
 Any text from // to the end of a line is a comment.
 
@@ -23,22 +23,22 @@ Assignment is an expression, so assignments can be cascaded.
 
 Let's assume the following input:
 
-	a = b = (23 + c)
-	print 2 * a
-	hello!
-	print c
-	print 2^(-1/2) 
+    a = b = (23 + c)
+    print 2 * a
+    hello!
+    print c
+    print 2^(-1/2) 
 
 Variable c is being used without a previous assignment. This is valid, the variable is
 automatically initialized as 0 and a warning is printed on standard error.
 
 This is the output:
 
-	line 1: defining c = 0		(standard error)
-	46							(standard output)
-	line 3: ERROR: hello!		(standard error)
-	0							(standard output)
-	0.707107					(standard output)
+    line 1: defining c = 0      (standard error)
+    46                          (standard output)
+    line 3: ERROR: hello!       (standard error)
+    0                           (standard output)
+    0.707107                    (standard output)
 
 Input format for numbers is a decimal number, optionally preceded by a sign, and
 optionally followed by an exponent (letter "e" followed by a signed or unsigned integer).

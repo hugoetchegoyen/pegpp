@@ -10,118 +10,118 @@ using namespace std;
 using namespace peg;
 
 /*
-	This calculator supports the four basic operations, unary plus and minus, 
-	raising to a power (with ^)	and grouping with parenthesis. 
+    This calculator supports the four basic operations, unary plus and minus, 
+    raising to a power (with ^) and grouping with parenthesis. 
 
-	Values are of type double. Input format is a decimal number, optionally
-	preceded by a + or - sign, and optionally followed by an exponent (letter "e"
-	followed by a signed or unsigned integer).
+    Values are of type double. Input format is a decimal number, optionally
+    preceded by a + or - sign, and optionally followed by an exponent (letter "e"
+    followed by a signed or unsigned integer).
 
-	Named variables are supported. Names have the format of C identifiers. 
+    Named variables are supported. Names have the format of C identifiers. 
 
-	Assignment is an expression, so this is valid:
+    Assignment is an expression, so this is valid:
 
-		a = b = c = 1
+        a = b = c = 1
 
-	If a variable x is used before being defined, it is automatically defined as 0 
-	and a warning is printed ("defining x = 0").
+    If a variable x is used before being defined, it is automatically defined as 0 
+    and a warning is printed ("defining x = 0").
 
-	The calculator accepts statements, one per line. Newline is a statement terminator.
+    The calculator accepts statements, one per line. Newline is a statement terminator.
 
-	Statements can be:
+    Statements can be:
 
-		<expression>
-		print <expression>
-		empty 
+        <expression>
+        print <expression>
+        empty 
 
-	Any text after // to the end of the line is a comment. 
+    Any text after // to the end of the line is a comment. 
 
-	Invalid lines are reported as errors and discarded. 
+    Invalid lines are reported as errors and discarded. 
 
-	All valid statements are executed.
+    All valid statements are executed.
 */
 
 int main(int argc, char *argv[])
 {
-	matcher m;
-	value_stack<double> val(m);
-	value_stack<string> name(m);
-	map<string, double> var;
-	unsigned line = 1;
+    matcher m;
+    value_stack<double> val(m);
+    value_stack<string> name(m);
+    map<string, double> var;
+    unsigned line = 1;
 
-	// Basic lexical definitions 
+    // Basic lexical definitions 
 
-	Rule SPACE	= Ccl(" \t\f");
-	Rule EOL	= ("\r\n" | Ccl("\r\n"))				>> [&] { ++line; };
-	Rule ALPHA	= Ccl("_a-zA-Z");
-	Rule ALNUM	= Ccl("_a-zA-Z0-9");
-	Rule SIGN	= Ccl("+-");
-	Rule DIGIT	= Ccl("0-9");
-	Rule DOT	= '.';
-	Rule UDEC	= +DIGIT >> ~(DOT >> *DIGIT) | DOT >> +DIGIT;
-	Rule EXP	= "e" >> ~SIGN >> +DIGIT;
-	Rule COMM	= "//" >> *(!EOL >> Any());
+    Rule SPACE  = Ccl(" \t\f");
+    Rule EOL    = ("\r\n" | Ccl("\r\n"))                >> [&] { ++line; };
+    Rule ALPHA  = Ccl("_a-zA-Z");
+    Rule ALNUM  = Ccl("_a-zA-Z0-9");
+    Rule SIGN   = Ccl("+-");
+    Rule DIGIT  = Ccl("0-9");
+    Rule DOT    = '.';
+    Rule UDEC   = +DIGIT >> ~(DOT >> *DIGIT) | DOT >> +DIGIT;
+    Rule EXP    = "e" >> ~SIGN >> +DIGIT;
+    Rule COMM   = "//" >> *(!EOL >> Any());
 
-	// Tokens
+    // Tokens
 
-	Rule WS		= *SPACE;
-	Rule LPAR	= '(' >> WS;
-	Rule RPAR	= ')' >> WS;
-	Rule ADD	= '+' >> WS;
-	Rule SUB	= '-' >> WS;
-	Rule MUL	= '*' >> WS;
-	Rule DIV	= '/' >> WS;
-	Rule POW	= '^' >> WS;
-	Rule EQUALS = '=' >> WS;
-	Rule ENDL	= ~COMM >> EOL >> WS;
-	Rule PRINT	= "print" >> !ALNUM  >> WS;
-	Rule IDENT	= !PRINT >> (ALPHA >> *ALNUM)-- >> WS	>> [&] { name[0] = m.text(); };
-	Rule NUMBER	= (~SIGN >> UDEC >> ~EXP)-- >> WS 		>> [&] { val[0] = stof(m.text()); };
+    Rule WS     = *SPACE;
+    Rule LPAR   = '(' >> WS;
+    Rule RPAR   = ')' >> WS;
+    Rule ADD    = '+' >> WS;
+    Rule SUB    = '-' >> WS;
+    Rule MUL    = '*' >> WS;
+    Rule DIV    = '/' >> WS;
+    Rule POW    = '^' >> WS;
+    Rule EQUALS = '=' >> WS;
+    Rule ENDL   = ~COMM >> EOL >> WS;
+    Rule PRINT  = "print" >> !ALNUM  >> WS;
+    Rule IDENT  = !PRINT >> (ALPHA >> *ALNUM)-- >> WS   >> [&] { name[0] = m.text(); };
+    Rule NUMBER = (~SIGN >> UDEC >> ~EXP)-- >> WS       >> [&] { val[0] = stof(m.text()); };
 
-	// Calculator
+    // Calculator
 
-	Rule calc, statement, expression, term, factor, atom;
+    Rule calc, statement, expression, term, factor, atom;
 
-	calc 		= WS >> ~statement >> ENDL
-				| WS >> (+(!ENDL >> Any()))--			>> [&] { cerr << "line " << line << ": ERROR: " << m.text() << endl; }
-					>> ENDL
-				;
+    calc        = WS >> ~statement >> ENDL
+                | WS >> (+(!ENDL >> Any()))--           >> [&] { cerr << "line " << line << ": ERROR: " << m.text() << endl; }
+                    >> ENDL
+                ;
 
-	statement	= PRINT >> expression					>> [&] { cout << val[1] << endl; }
-				| expression 	
-				;
+    statement   = PRINT >> expression                   >> [&] { cout << val[1] << endl; }
+                | expression    
+                ;
 
-	expression	= IDENT >> EQUALS >> expression			>> [&] { val[0] = var[name[0]] = val[2]; }
-				| term >> *(	
-					  ADD >> term						>> [&] { val[0] += val[2]; }
-					| SUB >> term 						>> [&] { val[0] -= val[2]; }
-					)
-				;
+    expression  = IDENT >> EQUALS >> expression         >> [&] { val[0] = var[name[0]] = val[2]; }
+                | term >> *(    
+                      ADD >> term                       >> [&] { val[0] += val[2]; }
+                    | SUB >> term                       >> [&] { val[0] -= val[2]; }
+                    )
+                ;
 
-	term		= factor >> *(
-					  MUL >> factor 					>> [&] { val[0] *= val[2]; }	
-					| DIV >> factor 					>> [&] { val[0] /= val[2]; }
-					)
-				;
+    term        = factor >> *(
+                      MUL >> factor                     >> [&] { val[0] *= val[2]; }    
+                    | DIV >> factor                     >> [&] { val[0] /= val[2]; }
+                    )
+                ;
 
-	factor		= atom >> *(
-					  POW >> atom						>> [&] { val[0] = pow(val[0], val[2]); }
-					)
-				;
+    factor      = atom >> *(
+                      POW >> atom                       >> [&] { val[0] = pow(val[0], val[2]); }
+                    )
+                ;
 
-	atom		= NUMBER 
-				| IDENT 								>> [&] 
-														{
-															if ( !var.count(name[0]) )
-																cerr << "line " << line << ": defining " << name[0] << " = 0\n";
-															val[0] = var[name[0]]; 
-														}
-				| LPAR >> expression >> RPAR 			>> [&] { val[0] = val[1]; }
-				| ADD >> atom							>> [&] { val[0] = val[1]; }			// unary plus
-				| SUB >> atom							>> [&] { val[0] = -val[1]; }		// unary minus
-				;
+    atom        = NUMBER 
+                | IDENT                                 >> [&] 
+                                                        {
+                                                            if ( !var.count(name[0]) )
+                                                                cerr << "line " << line << ": defining " << name[0] << " = 0\n";
+                                                            val[0] = var[name[0]]; 
+                                                        }
+                | LPAR >> expression >> RPAR            >> [&] { val[0] = val[1]; }
+                | ADD >> atom                           >> [&] { val[0] = val[1]; }         // unary plus
+                | SUB >> atom                           >> [&] { val[0] = -val[1]; }        // unary minus
+                ;
 
-	while ( calc.parse(m) )	
-		m.accept();
+    while ( calc.parse(m) ) 
+        m.accept();
 }
 
