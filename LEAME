@@ -1,0 +1,45 @@
+Varcalc es una calculadora con las siguientes funciones:
+
+    - Los valores son doubles.
+    - Soporta las cuatro operaciones básicas (+, -, *, /).
+    - Soporta exponenciación (^).
+    - Soporta + y - unarios.
+    - Soporta agrupamiento con paréntesis.
+    - Maneja variables (los nombres son como identificadores de C).
+    - Para imprimir resultados se dispone del comando print.
+
+Ignora el espacio en blanco, salvo los newlines. Lee sentencias de a una por línea;
+newline termina una sentencia.
+
+Las sentencias pueden ser:
+
+    - <expression>
+    - print <expression>
+    - nada
+
+Todo texto entre // y el final de la línea es un comentario.
+
+La asignación es una expresión, de modo que las asignaciones pueden encadenarse.
+
+Supongamos que se da la siguiente entrada:
+
+    a = b = (23 + c)
+    print 2 * a
+    hola!
+    print c
+    print 2^(-1/2)
+
+Aquí se está usando la variable c sin haberla asignado previamente. Esto es válido, la 
+variable se inicializa automáticamente en 0 y se imprime una advertencia por salida de error.
+
+Salida:
+
+    line 1: defining c = 0      (standard error)
+    46                          (standard output)
+    line 3: ERROR: hola!        (standard error)
+    0                           (standard output)
+    0.707107                    (standard output)
+
+El formato de números de entrada es un número decimal precedido opcionalmente por un signo 
+seguido opcionalmente por un exponente (letra "e" seguida por un entero con o sin signo).
+
