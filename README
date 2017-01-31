@@ -40,6 +40,6 @@ This is the output:
     0                           (standard output)
     0.707107                    (standard output)
 
-Input format for numbers is a decimal number, optionally preceded by a sign, and
-optionally followed by an exponent (letter "e" followed by a signed or unsigned integer).
+Input format for numbers is a decimal number optionally followed by an exponent 
+(letter "e" followed by a signed or unsigned integer).
 

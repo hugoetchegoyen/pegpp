@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
     Rule ENDL   = ~COMM >> EOL >> WS;
     Rule PRINT  = "print" >> !ALNUM  >> WS;
     Rule IDENT  = !PRINT >> (ALPHA >> *ALNUM)-- >> WS   >> [&] { name[0] = m.text(); };
-    Rule NUMBER = (~SIGN >> UDEC >> ~EXP)-- >> WS       >> [&] { val[0] = stof(m.text()); };
+    Rule NUMBER = (UDEC >> ~EXP)-- >> WS                >> [&] { val[0] = stof(m.text()); };
 
     // Calculator
 
@@ -104,8 +104,10 @@ int main(int argc, char *argv[])
                     )
                 ;
 
-    factor      = atom >> *(
-                      POW >> atom                       >> [&] { val[0] = pow(val[0], val[2]); }
+    factor      = ADD >> factor                         >> [&] { val[0] = val[1]; }         // unary plus
+                | SUB >> factor                         >> [&] { val[0] = -val[1]; }        // unary minus
+                | atom >> *(
+                      POW >> factor                     >> [&] { val[0] = pow(val[0], val[2]); }
                     )
                 ;
 
@@ -117,8 +119,6 @@ int main(int argc, char *argv[])
                                                             val[0] = var[name[0]]; 
                                                         }
                 | LPAR >> expression >> RPAR            >> [&] { val[0] = val[1]; }
-                | ADD >> atom                           >> [&] { val[0] = val[1]; }         // unary plus
-                | SUB >> atom                           >> [&] { val[0] = -val[1]; }        // unary minus
                 ;
 
     while ( calc.parse(m) ) 

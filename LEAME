@@ -40,6 +40,6 @@ Salida:
     0                           (standard output)
     0.707107                    (standard output)
 
-El formato de números de entrada es un número decimal precedido opcionalmente por un signo 
-seguido opcionalmente por un exponente (letra "e" seguida por un entero con o sin signo).
+El formato de números de entrada es un número decimal eguido opcionalmente por un exponente 
+(letra "e" seguida por un entero con o sin signo).
 
