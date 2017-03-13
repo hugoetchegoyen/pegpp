@@ -50,15 +50,6 @@ int main(int argc, char *argv[])
     unsigned line = 1;
 
 
-Rule a = 'a';
-Rule b = 'b';
-Rule c = 'c'; 
-
-Rule r = (+a)-- >> ~( (+b)-- >> c ) >> [&] { cout << '|' << m.text() << '|' << endl; };
-while ( r.parse(m) )
-    m.accept();
-return 0;
-
     // Basic lexical definitions 
 
     Rule SPACE  = Ccl(" \t\f");
