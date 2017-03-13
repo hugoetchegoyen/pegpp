@@ -71,7 +71,7 @@ namespace peg
         // Types
 
         typedef std::bitset<256> char_class;
-        struct mark { unsigned pos, actpos; };
+        struct mark { unsigned pos, actpos, begin, end; };
         struct action
         {
             std::function<void()> func;
@@ -164,8 +164,8 @@ namespace peg
 
         // Set a mark and backtrack to it
 
-        void set_mark(mark &mk) { mk.pos = pos; mk.actpos = actpos; }
-        void go_mark(const mark &mk) { pos = mk.pos; actpos = mk.actpos; }
+        void set_mark(mark &mk) { mk.pos = pos; mk.actpos = actpos; mk.begin = cap_begin; mk.end = cap_end; }
+        void go_mark(const mark &mk) { pos = mk.pos; actpos = mk.actpos; cap_begin = mk.begin; cap_end = mk.end; }
 
         // Handle indices for automatic value stacks
 
@@ -561,7 +561,8 @@ namespace peg
             {
                 unsigned b = m.begin_capture();
                 bool r = exp->parse(m);
-                m.end_capture(b);
+                if ( r )
+                    m.end_capture(b);
                 return r;
             }
         };
