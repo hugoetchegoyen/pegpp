@@ -1,6 +1,7 @@
 #ifndef PEG_H_INCLUDED
 #define PEG_H_INCLUDED
 
+#include <cstddef>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -282,6 +283,15 @@ namespace peg
         }
     };
 
+    class Expr; 
+
+    inline namespace literals
+    {
+        inline Expr operator""_lit(const char *s, std::size_t len);
+        inline Expr operator""_chr(char c);
+        inline Expr operator""_ccl(const char *s, std::size_t len);
+    }
+
     // This class is a wrapper around a polimorphic expression pointer, 
     // We need a class because we want to define operators for building a syntax tree.
 
@@ -295,6 +305,10 @@ namespace peg
         friend Expr Any();
         friend Expr Do(std::function<void()> f);
         friend Expr Pred(std::function<void(bool &)> f);
+
+        friend Expr literals::operator""_lit(const char *s, std::size_t len);
+        friend Expr literals::operator""_chr(char c);
+        friend Expr literals::operator""_ccl(const char *s, std::size_t len);
 
         friend Expr operator>>(const Expr &r, std::string s);
         friend Expr operator>>(std::string s, const Expr &r);
@@ -620,6 +634,14 @@ namespace peg
     inline Expr Do(std::function<void()> f) { return Expr(f); }                                     // action
     inline Expr Pred(std::function<void(bool &)> f) { return Expr(f); }                             // semantic predicate
 
+    // Literals
+    inline namespace literals
+    {
+        inline Expr operator""_lit(const char *s, std::size_t len) { return Lit(std::string(s, len)); }     // literal
+        inline Expr operator""_chr(char c) { return Chr(c); }                                               // single char
+        inline Expr operator""_ccl(const char *s, std::size_t len) { return Ccl(std::string(s, len)); }     // char class
+    }
+
     // Free-standing binary operators
 
     inline Expr operator>>(const Expr &r, std::string s) { return r >> Expr(s); }                   // string overloads
@@ -670,7 +692,7 @@ namespace peg
             const char *what() const noexcept { return "Parsing uninitialized rule"; }
         };
 
-        // Adjust the base of the indices for the value stack and parse the root.
+        // Adjust the base of value stack indices and parse the root.
 
         bool parse(matcher &m) const 
         { 
@@ -693,11 +715,13 @@ namespace peg
         Rule(const Expr &r) : Expr(ExprPtr(new RefExpr(*this))), root(r.exp) { }
         Rule &operator=(const Expr &r) { root = r.exp; return *this; }
 
-        // Copy constructor and assignment do not work as expected. 
-        // The source rule is used as an expression. For example:
+        // Copy constructor and assignment are non-standard, 
+        // because they treat the source rule as an expression.
         //
         //      Rule r;
-        //      r = r;      // r becomes left-recursive (calls itself directly)
+        //      r = r;
+        // 
+        // The second line is NOT a no-op, it makes r left-recursive.
 
         Rule(const Rule &r) : Rule(Expr(r)) { }
         Rule &operator=(const Rule &r) { return *this = Expr(r); }
