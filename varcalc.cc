@@ -79,11 +79,13 @@ int main(int argc, char *argv[])
 
     // Calculator grammar
 
-    Rule calc, statement, expression, term, factor, atom;
+    Rule calc, error, statement, expression, term, factor, atom;
 
     calc        = WS >> ~statement >> ENDL
-                | WS >> (+(!ENDL >> Any()))--           ([&] { cerr << "line " << line << ": ERROR: " << m.text() << endl; })
-                    >> ENDL
+                | WS >> error >> ENDL
+                ;    
+
+    error       = (+(!ENDL >> Any()))--                 ([&] { cerr << "line " << line << ": ERROR: " << m.text() << endl; })
                 ;
 
     statement   = PRINT >> expression                   ([&] { cout << val[1] << endl; })

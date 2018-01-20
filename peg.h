@@ -611,7 +611,6 @@ namespace peg
         Expr operator~() const { return ExprPtr(new OptExpr(exp)); }                                // optional
         Expr operator&() const { return ExprPtr(new AndExpr(exp)); }                                // and-predicate (1)
         Expr operator!() const { return ExprPtr(new NotExpr(exp)); }                                // not-predicate
-        Expr operator--() const { return ExprPtr(new CapExpr(exp)); }                               // text capture
 
         // (1) Overloads unary &, use std::addressof() if you need the address of an expression (you don't).
 
