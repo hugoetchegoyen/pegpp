@@ -92,6 +92,35 @@ namespace peg
 
         unsigned level;
         unsigned base;
+
+        // Make a characer class from a string
+
+        static char_class make_class(std::string s) 
+        {
+            char_class ccl;
+            const char *p = s.c_str(), *q = p + s.length(); 
+            bool value = true;
+
+            if ( *p == '^' )
+            {
+                ccl.set();
+                value = false;
+                p++;
+            }
+            while ( p < q )
+            {
+                unsigned c = *p++ & 0xFF;
+                ccl.set(c, value);
+                if ( p + 1 < q && *p == '-' )
+                {
+                    unsigned d = p[1] & 0xFF;
+                    while ( c < d )
+                        ccl.set(++c, value);
+                    p += 2;
+                }
+            }
+            return ccl;
+        }
     
         // Get one char
 
@@ -367,30 +396,7 @@ namespace peg
         {
             matcher::char_class ccl;
 
-            CclExpr(std::string s) 
-            {
-                const char *p = s.c_str(), *q = p + s.length(); 
-                bool value = true;
-
-                if ( *p == '^' )
-                {
-                    ccl.set();
-                    value = false;
-                    p++;
-                }
-                while ( p < q )
-                {
-                    unsigned c = *p++ & 0xFF;
-                    ccl.set(c, value);
-                    if ( p + 1 < q && *p == '-' )
-                    {
-                        unsigned d = p[1] & 0xFF;
-                        while ( c < d )
-                            ccl.set(++c, value);
-                        p += 2;
-                    }
-                }
-            }
+            CclExpr(std::string s) : ccl(matcher::make_class(s)) { }
             bool parse(matcher &m) const { return m.match_class(ccl); }
         };
 
@@ -705,11 +711,12 @@ namespace peg
         }
 
         // Constructors initialize the expression pointer and the root. 
-        // Assignments only assign the root. 
+        // Assignments assign the root. 
 
         Rule() : Expr(ExprPtr(new RefExpr(*this))), root(nullptr) { }
 
-        // A source expression becomes the root of the target rule.
+        // When constructing or assigning from an expression, the source becomes
+        // the root of the rule.
 
         Rule(const Expr &r) : Expr(ExprPtr(new RefExpr(*this))), root(r.exp) { }
         Rule &operator=(const Expr &r) { root = r.exp; return *this; }
@@ -725,22 +732,15 @@ namespace peg
         Rule(const Rule &r) : Rule(Expr(r)) { }
         Rule &operator=(const Rule &r) { return *this = Expr(r); }
 
-        // Overloaded constructors and assignments
+        // Overloaded constructors and assignments. This works for:
+        //      string
+        //      const char *
+        //      char
+        //      action
+        //      semantic predicate
 
-        Rule(std::string s) : Rule(Expr(s)) { }                                     // from string
-        Rule &operator=(std::string s) { return *this = Expr(s); }
-
-        Rule(const char *s) : Rule(Expr(s)) { }
-        Rule &operator=(const char *s) { return *this = Expr(s); }                  // from C string
-
-        Rule(int c) : Rule(Expr(c)) { }
-        Rule &operator=(int c) { return *this = Expr(c); }                          // from single char
-
-        Rule(std::function<void()> f) : Rule(Expr(f)) { }
-        Rule &operator=(std::function<void()> f) { return *this = Expr(f); }        // from action
-
-        Rule(std::function<void(bool &)> f) : Rule(Expr(f)) { }
-        Rule &operator=(std::function<void(bool &)> f) { return *this = Expr(f); }  // from semantic predicate
+        template <typename T> Rule(T t) : Rule(Expr(t)) { }
+        template <typename T> Rule &operator=(T t) { return *this = Expr(t); }
     };
 
 }; 
