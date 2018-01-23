@@ -26,7 +26,7 @@ using namespace peg;
     If a variable x is used before being defined, it is automatically defined as 0 
     and a warning is printed ("defining x = 0").
 
-    The calculator accepts statements, one per line. Newline is a statement terminator.
+    The calculator accepts statements, terminated by newline or semicolon.
 
     Statements can be:
 
@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
     Rule DIV    = '/' >> WS;
     Rule POW    = '^' >> WS;
     Rule EQUALS = '=' >> WS;
-    Rule ENDL   = ~COMM >> EOL >> WS;
+    Rule ENDL   = (~COMM >> EOL | ';') >> WS;
     Rule PRINT  = "print" >> !ALNUM  >> WS;
     Rule IDENT  = !PRINT >> (ALPHA >> *ALNUM)-- >> WS   ([&] { name[0] = m.text(); });
     Rule NUMBER = (UDEC >> ~EXP)-- >> WS                ([&] { val[0] = stof(m.text()); });
