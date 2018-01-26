@@ -598,10 +598,10 @@ namespace peg
         Expr &operator=(const Expr &r) = default;
 
         Expr(ExprPtr e) : exp(e) { }                                                                // from expression pointer
-        Expr(std::string s) : exp(ExprPtr(new Expr::StrExpr(s))) { }                                // from string
-        Expr(int c) : exp(ExprPtr(new Expr::ChrExpr(c))) { }                                        // from single char
-        Expr(std::function<void()> f) : exp(ExprPtr(new Expr::DoExpr(f))) { }                       // from action
-        Expr(std::function<void(bool &)> f) : exp(ExprPtr(new Expr::PredExpr(f))) { }               // from semantic predicate
+        Expr(std::string s) : exp(ExprPtr(new StrExpr(s))) { }                                      // from string
+        Expr(int c) : exp(ExprPtr(new ChrExpr(c))) { }                                              // from single char
+        Expr(std::function<void()> f) : exp(ExprPtr(new DoExpr(f))) { }                             // from action
+        Expr(std::function<void(bool &)> f) : exp(ExprPtr(new PredExpr(f))) { }                     // from semantic predicate
 
     public:
 
@@ -640,6 +640,7 @@ namespace peg
     inline Expr Pred(std::function<void(bool &)> f) { return Expr(f); }                             // semantic predicate
 
     // Literals
+    
     inline namespace literals
     {
         inline Expr operator""_str(const char *s, std::size_t len) { return Str(std::string(s, len)); }     // string
@@ -710,36 +711,32 @@ namespace peg
             return r;
         }
 
-        // Constructors initialize the expression pointer and the root. 
-        // Assignments assign the root. 
+        // Only default construction allowed. No coying.
 
         Rule() : Expr(ExprPtr(new RefExpr(*this))), root(nullptr) { }
+        Rule(const Rule &r) = delete;
 
-        // When constructing or assigning from an expression, the source becomes
+        // When assigning from an expression, the source becomes
         // the root of the rule.
 
-        Rule(const Expr &r) : Expr(ExprPtr(new RefExpr(*this))), root(r.exp) { }
         Rule &operator=(const Expr &r) { root = r.exp; return *this; }
 
-        // Copy constructor and assignment are non-standard, 
-        // because they treat the source rule as an expression.
+        // Copy assignment treats the source rule as an expression.
         //
         //      Rule r;
         //      r = r;
         // 
         // The second line is NOT a no-op, it makes r left-recursive.
 
-        Rule(const Rule &r) : Rule(Expr(r)) { }
         Rule &operator=(const Rule &r) { return *this = Expr(r); }
 
-        // Overloaded constructors and assignments. This works for:
+        // Overloaded assignments. This works for:
         //      string
         //      const char *
         //      char
         //      action
         //      semantic predicate
 
-        template <typename T> Rule(T t) : Rule(Expr(t)) { }
         template <typename T> Rule &operator=(T t) { return *this = Expr(t); }
     };
 

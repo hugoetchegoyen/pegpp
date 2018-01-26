@@ -50,32 +50,36 @@ int main(int argc, char *argv[])
 
     // Basic lexical definitions 
 
-    Rule SPACE  = " \t\f"_ccl;
-    Rule EOL    = ("\r\n" | "\r\n"_ccl)                ([&] { ++line; });
-    Rule ALPHA  = "_a-zA-Z"_ccl;
-    Rule ALNUM  = "_a-zA-Z0-9"_ccl;
-    Rule SIGN   = "+-"_ccl;
-    Rule DIGIT  = "0-9"_ccl;
-    Rule DOT    = '.';
-    Rule UDEC   = +DIGIT >> ~(DOT >> *DIGIT) | DOT >> +DIGIT;
-    Rule EXP    = 'e' >> ~SIGN >> +DIGIT;
-    Rule COMM   = "//" >> *(!EOL >> Any());
+    Rule SPACE, EOL, ALPHA, ALNUM, SIGN, DIGIT, DOT, UDEC, EXP, COMM;     
+
+    SPACE       = " \t\f"_ccl;
+    EOL         = ("\r\n" | "\r\n"_ccl)                ([&] { ++line; });
+    ALPHA       = "_a-zA-Z"_ccl;
+    ALNUM       = "_a-zA-Z0-9"_ccl;
+    SIGN        = "+-"_ccl;
+    DIGIT       = "0-9"_ccl;
+    DOT         = '.';
+    UDEC        = +DIGIT >> ~(DOT >> *DIGIT) | DOT >> +DIGIT;
+    EXP         = 'e' >> ~SIGN >> +DIGIT;
+    COMM        = "//" >> *(!EOL >> Any());
 
     // Tokens
 
-    Rule WS     = *SPACE;
-    Rule LPAR   = '(' >> WS;
-    Rule RPAR   = ')' >> WS;
-    Rule ADD    = '+' >> WS;
-    Rule SUB    = '-' >> WS;
-    Rule MUL    = '*' >> WS;
-    Rule DIV    = '/' >> WS;
-    Rule POW    = '^' >> WS;
-    Rule EQUALS = '=' >> WS;
-    Rule ENDL   = (~COMM >> EOL | ';') >> WS;
-    Rule PRINT  = "print" >> !ALNUM  >> WS;
-    Rule IDENT  = !PRINT >> (ALPHA >> *ALNUM)-- >> WS   ([&] { name[0] = m.text(); });
-    Rule NUMBER = (UDEC >> ~EXP)-- >> WS                ([&] { val[0] = stof(m.text()); });
+    Rule WS, LPAR, RPAR, ADD, SUB, MUL, DIV, POW, EQUALS, ENDL, PRINT, IDENT, NUMBER;
+
+    WS          = *SPACE;
+    LPAR        = '(' >> WS;
+    RPAR        = ')' >> WS;
+    ADD         = '+' >> WS;
+    SUB         = '-' >> WS;
+    MUL         = '*' >> WS;
+    DIV         = '/' >> WS;
+    POW         = '^' >> WS;
+    EQUALS      = '=' >> WS;
+    ENDL        = (~COMM >> EOL | ';') >> WS;
+    PRINT       = "print" >> !ALNUM  >> WS;
+    IDENT       = !PRINT >> (ALPHA >> *ALNUM)-- >> WS   ([&] { name[0] = m.text(); });
+    NUMBER      = (UDEC >> ~EXP)-- >> WS                ([&] { val[0] = stof(m.text()); });
 
     // Calculator grammar
 
