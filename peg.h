@@ -312,6 +312,8 @@ namespace peg
         }
     };
 
+    // Forward declarations
+
     class Expr; 
 
     inline namespace literals
@@ -322,7 +324,7 @@ namespace peg
     }
 
     // This class is a wrapper around a polimorphic expression pointer, 
-    // We need a class because we want to define operators for building a syntax tree.
+    // We need it to define operators for building a syntax tree.
 
     class Expr
     {
@@ -338,26 +340,6 @@ namespace peg
         friend Expr literals::operator""_str(const char *s, std::size_t len);
         friend Expr literals::operator""_chr(char c);
         friend Expr literals::operator""_ccl(const char *s, std::size_t len);
-
-        friend Expr operator>>(const Expr &r, std::string s);
-        friend Expr operator>>(std::string s, const Expr &r);
-        friend Expr operator|(const Expr &r, std::string s);
-        friend Expr operator|(std::string s, const Expr &r);
-
-        friend Expr operator>>(const Expr &r, int c);
-        friend Expr operator>>(int c, const Expr &r);
-        friend Expr operator|(const Expr &r, int c);
-        friend Expr operator|(int c, const Expr &r);
-
-        friend Expr operator>>(const Expr &r, std::function<void()> f);
-        friend Expr operator>>(std::function<void()> f, const Expr &r);
-        friend Expr operator|(const Expr &r, std::function<void()> f);
-        friend Expr operator|(std::function<void()> f, const Expr &r);
-
-        friend Expr operator>>(const Expr &r, std::function<void(bool &)> f);
-        friend Expr operator>>(std::function<void(bool &)> f, const Expr &r);
-        friend Expr operator|(const Expr &r, std::function<void(bool &)> f);
-        friend Expr operator|(std::function<void(bool &)> f, const Expr &r);
 
         friend class Rule;
 
@@ -605,11 +587,6 @@ namespace peg
 
     public:
 
-        // Binary operators 
-
-        Expr operator>>(const Expr &r) const { return ExprPtr(new SeqExpr(exp, r.exp)); }           // sequence
-        Expr operator|(const Expr &r) const { return ExprPtr(new AltExpr(exp, r.exp)); }            // ordered choice
-
         // Prefix operators
 
         Expr operator*() const { return ExprPtr(new ZomExpr(exp)); }                                // zero or more times
@@ -618,7 +595,7 @@ namespace peg
         Expr operator&() const { return ExprPtr(new AndExpr(exp)); }                                // and-predicate (1)
         Expr operator!() const { return ExprPtr(new NotExpr(exp)); }                                // not-predicate
 
-        // (1) Overloads unary &, use std::addressof() if you need the address of an expression (you don't).
+        // (1) Overloads unary &
 
         // Postfix operators
 
@@ -628,6 +605,34 @@ namespace peg
         Expr operator()(int c) { return operator()(Expr(c)); }                                      // attach single char
         Expr operator()(std::function<void()> f) { return operator()(Expr(f)); }                    // attach action
         Expr operator()(std::function<void(bool &)> f) { return operator()(Expr(f)); }              // attach semantic predicate
+
+        // Binary operators 
+
+        Expr operator>>(const Expr &r) const { return ExprPtr(new SeqExpr(exp, r.exp)); }           // sequence
+        Expr operator|(const Expr &r) const { return ExprPtr(new AltExpr(exp, r.exp)); }            // ordered choice
+
+        // Overloaded binary operators
+
+        friend Expr operator>>(const Expr &r, std::string s) { return r >> Expr(s); }               // string overloads
+        friend Expr operator>>(std::string s, const Expr &r) { return Expr(s) >> r; }
+        friend Expr operator|(const Expr &r, std::string s) { return r | Expr(s); } 
+        friend Expr operator|(std::string s, const Expr &r) { return Expr(s) | r; } 
+
+        friend Expr operator>>(const Expr &r, int c) { return r >> Expr(c); }                       // single char overloads
+        friend Expr operator>>(int c, const Expr &r) { return Expr(c) >> r; }
+        friend Expr operator|(const Expr &r, int c) { return r | Expr(c); }
+        friend Expr operator|(int c, const Expr &r) { return Expr(c) | r; }
+
+        friend Expr operator>>(const Expr &r, std::function<void()> f) { return r >> Expr(f); }     // action overloads
+        friend Expr operator>>(std::function<void()> f, const Expr &r) { return Expr(f) >> r; }
+        friend Expr operator|(const Expr &r, std::function<void()> f) { return r | Expr(f); }
+        friend Expr operator|(std::function<void()> f, const Expr &r) { return Expr(f) | r; }
+
+        friend Expr operator>>(const Expr &r, std::function<void(bool &)> f) { return r >> Expr(f); }   // semantic predicate
+        friend Expr operator>>(std::function<void(bool &)> f, const Expr &r) { return Expr(f) >> r; }   // overloads
+        friend Expr operator|(const Expr &r, std::function<void(bool &)> f) { return r | Expr(f); }
+        friend Expr operator|(std::function<void(bool &)> f, const Expr &r) { return Expr(f) | r; }
+
     };
 
     // Lexical primitives
@@ -648,46 +653,22 @@ namespace peg
         inline Expr operator""_ccl(const char *s, std::size_t len) { return Ccl(std::string(s, len)); }     // char class
     }
 
-    // Free-standing binary operators
-
-    inline Expr operator>>(const Expr &r, std::string s) { return r >> Expr(s); }                   // string overloads
-    inline Expr operator>>(std::string s, const Expr &r) { return Expr(s) >> r; }
-    inline Expr operator|(const Expr &r, std::string s) { return r | Expr(s); } 
-    inline Expr operator|(std::string s, const Expr &r) { return Expr(s) | r; } 
-
-    inline Expr operator>>(const Expr &r, int c) { return r >> Expr(c); }                           // single char overloads
-    inline Expr operator>>(int c, const Expr &r) { return Expr(c) >> r; }
-    inline Expr operator|(const Expr &r, int c) { return r | Expr(c); }
-    inline Expr operator|(int c, const Expr &r) { return Expr(c) | r; }
-
-    inline Expr operator>>(const Expr &r, std::function<void()> f) { return r >> Expr(f); }         // action overloads
-    inline Expr operator>>(std::function<void()> f, const Expr &r) { return Expr(f) >> r; }
-    inline Expr operator|(const Expr &r, std::function<void()> f) { return r | Expr(f); }
-    inline Expr operator|(std::function<void()> f, const Expr &r) { return Expr(f) | r; }
-
-    inline Expr operator>>(const Expr &r, std::function<void(bool &)> f) { return r >> Expr(f); }   // semantic predicate
-    inline Expr operator>>(std::function<void(bool &)> f, const Expr &r) { return Expr(f) >> r; }   // overloads
-    inline Expr operator|(const Expr &r, std::function<void(bool &)> f) { return r | Expr(f); }
-    inline Expr operator|(std::function<void(bool &)> f, const Expr &r) { return Expr(f) | r; }
-
     // Grammar rules 
 
     class Rule : public Expr
     {
-        // The root of this rule's syntax tree
+        // The root of this rule's expression tree
 
         ExprPtr root;
 
-        // A rules's expression pointer points to a structure that holds a reference to 
-        // the rule. This indirection allows rules to refer to other rules before 
-        // they are defined. The reference structure reports an expression size of 1
-        // (a rule expression uses one slot in the value stack).
+        // A rule expression is a structure that holds a reference to the rule. 
+        // This indirection allows rules to refer to other rules before they are defined.
 
-        struct RefExpr : Expression
+        struct RuleExpr : Expression
         {
             const Rule &rule;
 
-            RefExpr(const Rule &r) : rule(r) { }
+            RuleExpr(const Rule &r) : rule(r) { }
             bool parse(matcher &m) const { return rule.parse(m); }
         };
 
@@ -713,24 +694,24 @@ namespace peg
 
         // Only default construction allowed. No coying.
 
-        Rule() : Expr(ExprPtr(new RefExpr(*this))), root(nullptr) { }
+        Rule() : Expr(ExprPtr(new RuleExpr(*this))), root(nullptr) { }
         Rule(const Rule &r) = delete;
 
-        // When assigning from an expression, the source becomes
-        // the root of the rule.
+        // An expression assigns the root.
 
         Rule &operator=(const Expr &r) { root = r.exp; return *this; }
 
-        // Copy assignment treats the source rule as an expression.
+        // Copy assignment takes the source rule's expression.
         //
         //      Rule r;
         //      r = r;
         // 
-        // The second line is NOT a no-op, it makes r left-recursive.
+        // This is non-trivial, it makes r left-recursive.
 
         Rule &operator=(const Rule &r) { return *this = Expr(r); }
 
-        // Overloaded assignments. This works for:
+        // Overloaded assignments for:
+        //
         //      string
         //      const char *
         //      char
