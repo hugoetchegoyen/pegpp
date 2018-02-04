@@ -3,6 +3,7 @@
 #include <map>
 
 #define PEG_USE_SHARED_PTR
+// #define PEG_DEBUG     // Uncomment this for checking the grammar
 
 #include "peg.h"
 
@@ -126,8 +127,34 @@ int main(int argc, char *argv[])
                 | LPAR >> expression >> RPAR            ([&] { val[0] = val[1]; })
                 ;
 
-    // Parse and execute
+#ifdef PEG_DEBUG
 
+    // Rules to be debugged while checking
+    peg_debug(PRINT);
+    peg_debug(IDENT);
+    peg_debug(EQUALS);
+    peg_debug(ADD);
+    peg_debug(SUB);
+    peg_debug(MUL);
+    peg_debug(DIV);
+    peg_debug(POW);
+    peg_debug(NUMBER);
+    peg_debug(LPAR);
+    peg_debug(RPAR);
+    peg_debug(calc);
+    peg_debug(error);
+    peg_debug(statement);
+    peg_debug(expression);
+    peg_debug(term);
+    peg_debug(factor);
+    peg_debug(atom);
+
+    // Check the grammar    
+    calc.check();
+
+#endif
+
+    // Parse and execute
     while ( calc.parse(m) ) 
         m.accept();
 }

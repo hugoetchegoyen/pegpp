@@ -19,7 +19,6 @@
 namespace peg
 {
     // Auxiliary vector class
-
     template <typename T> 
     class vect
     {
@@ -54,23 +53,19 @@ namespace peg
     };
 
     // Lexical matcher, scheduled actions handler, text capture and value stack helper
-
     class matcher
     {
         // Constants
-
         static const unsigned BUFLEN = 1024;
         static const unsigned ACTSIZE = 32;
         
         // Friends
-
         friend class Expr;
         friend class Rule;
         template <typename T> friend class value_stack;
         template <typename T> friend class value_map;
 
         // Types
-
         typedef std::bitset<256> char_class;
         struct mark { unsigned pos, actpos, begin, end; };
         struct action
@@ -80,7 +75,6 @@ namespace peg
         };
 
         // Properties
-
         std::istream &in;
         std::string ibuf;
         char *buf = new char[BUFLEN];
@@ -95,8 +89,7 @@ namespace peg
         unsigned level = 0;
         unsigned base = 0;
 
-        // Make a characer class from a string
-
+        // Make a character class from a string
         static char_class make_class(std::string s) 
         {
             char_class ccl;
@@ -125,7 +118,6 @@ namespace peg
         }
     
         // Get one char
-
         bool getc(int &c) 
         {
             if ( pos == ibuf.length() )                     // try to get more input
@@ -183,7 +175,6 @@ namespace peg
         }
 
         // Schedule an action
-
         void schedule(std::function<void()> f)
         {
             action &act = actions[actpos++];
@@ -195,12 +186,10 @@ namespace peg
         }
 
         // Set a mark and backtrack to it
-
         void set_mark(mark &mk) const { mk.pos = pos; mk.actpos = actpos; mk.begin = cap_begin; mk.end = cap_end; }
         void go_mark(const mark &mk) { pos = mk.pos; actpos = mk.actpos; cap_begin = mk.begin; cap_end = mk.end; }
 
         // Handle indices for automatic value stacks
-
         unsigned get_level() const { return level; }
         void set_level(unsigned n) { level = n; }
 
@@ -208,21 +197,18 @@ namespace peg
         void set_base(unsigned n) { base = n; }
 
         // Capture text
-
         unsigned begin_capture() const { return pos; }
         void end_capture(unsigned b) { cap_begin = b; cap_end = pos; }
 
     public:
 
         // Construct from an std::istream, default is std::cin.
-
         matcher(std::istream &is = std::cin) : in(is) { actions.reserve(ACTSIZE); }
         ~matcher() { delete[] buf; }
         matcher(const matcher &) = delete;                  // not copyable
         matcher &operator=(const matcher &) = delete;       // not assignable
 
         // Execute scheduled actions and consume matched input
-
         void accept() 
         { 
             for ( unsigned i = 0 ; i < actpos ; i++ )
@@ -244,7 +230,6 @@ namespace peg
         } 
 
         // Discard actions and input
-
         void clear() 
         { 
             actpos = 0;
@@ -257,7 +242,6 @@ namespace peg
         }
 
         // Get last captured text
-
         std::string text() const { return ibuf.substr(cap_begin, cap_end - cap_begin); }
     };
 
@@ -302,7 +286,6 @@ namespace peg
     };
 
     // Forward declarations
-
     class Expr; 
 
     inline namespace literals
@@ -314,11 +297,9 @@ namespace peg
 
     // This class is a wrapper around a polimorphic expression pointer, 
     // We need it to define operators for building a syntax tree.
-
     class Expr
     {
         // Friends
-
         friend Expr Str(std::string s);
         friend Expr Chr(int c);
         friend Expr Ccl(std::string s);
@@ -333,15 +314,14 @@ namespace peg
         friend class Rule;
 
         // Syntax tree structures
-
         struct Expression 
         { 
-            virtual bool parse(matcher &m) const = 0;               // must be defined for every subtype
+            virtual bool parse(matcher &m) const = 0;
             virtual unsigned size() const { return 1; }             // by default expressions use one value stack slot
-            virtual ~Expression() = default;
-#ifdef PEG_ENABLE_CHECK
-            virtual bool visit(bool cons) const { return true; }    // by default expressions consume input
+#ifdef PEG_DEBUG
+            virtual void visit(unsigned &cons) const = 0;
 #endif
+            virtual ~Expression() = default;
         };
 
 #ifdef PEG_USE_SHARED_PTR
@@ -356,8 +336,8 @@ namespace peg
 
             StrExpr(std::string s) : str(s) { }
             bool parse(matcher &m) const { return m.match_string(str); }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { return cons || str.length() > 0; }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { cons += str.length(); }
 #endif
         };
 
@@ -367,6 +347,9 @@ namespace peg
 
             ChrExpr(int c) : ch(c) { }
             bool parse(matcher &m) const { return m.match_char(ch); }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { cons++; }
+#endif
         };
 
         struct CclExpr : Expression         // char class
@@ -375,11 +358,17 @@ namespace peg
 
             CclExpr(std::string s) : ccl(matcher::make_class(s)) { }
             bool parse(matcher &m) const { return m.match_class(ccl); }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { cons++; }
+#endif
         };
 
         struct AnyExpr : Expression         // any character
         {
             bool parse(matcher &m) const { return m.match_any(); }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { cons++; }
+#endif
         };
 
         struct AndExpr : Expression         // and-predicate
@@ -400,8 +389,8 @@ namespace peg
                 } 
                 return false;
             }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { return exp->visit(cons); }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { exp->visit(cons); }
 #endif
         };
 
@@ -423,8 +412,8 @@ namespace peg
                 } 
                 return true;
             }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { return exp->visit(cons); }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { exp->visit(cons); }
 #endif
         };
 
@@ -434,8 +423,8 @@ namespace peg
 
             DoExpr(std::function<void()> f) : func(f) { }
             bool parse(matcher &m) const { m.schedule(func); return true; }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { return cons; }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { }
 #endif
         };
 
@@ -450,8 +439,8 @@ namespace peg
                 func(r); 
                 return r;
             }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { return cons; }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { }
 #endif
         };
 
@@ -479,8 +468,8 @@ namespace peg
                 m.set_level(l);
                 return true;
             }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { return exp2->visit(exp1->visit(cons)); }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { exp1->visit(cons); exp2->visit(cons); }
 #endif
         };
 
@@ -508,8 +497,8 @@ namespace peg
                 m.set_level(l);
                 return true;
             }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { return exp2->visit(exp1->visit(cons)); }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { exp1->visit(cons); exp2->visit(cons); }
 #endif
         };
 
@@ -521,12 +510,16 @@ namespace peg
             AltExpr(ExprPtr e1, ExprPtr e2) : exp1(e1), exp2(e2), siz(std::max(e1->size(), e2->size())) { }
             unsigned size() const { return siz; }
             bool parse(matcher &m) const { return exp1->parse(m) || exp2->parse(m); }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const 
-            { 
-                bool cons1 = exp1->visit(cons); 
-                bool cons2 = exp2->visit(cons); 
-                return cons1 && cons2; 
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const 
+            {
+                unsigned in = cons; 
+                exp1->visit(cons);
+                unsigned out = cons;
+                cons = in; 
+                exp2->visit(cons); 
+                if ( out < cons )
+                    cons = out;
             }
 #endif
         };
@@ -544,8 +537,13 @@ namespace peg
                     ;
                 return true;
             }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { exp->visit(cons); return cons; }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const 
+            { 
+                unsigned in = cons;
+                exp->visit(cons); 
+                cons = in; 
+            }
 #endif
         };
 
@@ -564,8 +562,8 @@ namespace peg
                     ;
                 return true;
             }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { return exp->visit(cons); }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { exp->visit(cons); }
 #endif
         };
 
@@ -577,8 +575,13 @@ namespace peg
             OptExpr(ExprPtr e) : exp(e), siz(e->size()) { };
             unsigned size() const { return siz; }
             bool parse(matcher &m) const { exp->parse(m); return true; }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { exp->visit(cons); return cons; }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const 
+            { 
+                unsigned in = cons;
+                exp->visit(cons); 
+                cons = in; 
+            }
 #endif
         };
 
@@ -597,17 +600,15 @@ namespace peg
                     m.end_capture(b);
                 return r;
             }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { return exp->visit(cons); }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { exp->visit(cons); }
 #endif
         };
 
         // The wrapped pointer.
-
         ExprPtr exp;
 
         // Constructors, etc. 
-
         Expr() = delete;
         Expr(const Expr &r) = default;
         Expr &operator=(const Expr &r) = default;
@@ -621,7 +622,6 @@ namespace peg
     public:
 
         // Prefix operators
-
         Expr operator*() const { return ExprPtr(new ZomExpr(exp)); }                                // zero or more times
         Expr operator+() const { return ExprPtr(new OomExpr(exp)); }                                // one or more times
         Expr operator~() const { return ExprPtr(new OptExpr(exp)); }                                // optional
@@ -631,7 +631,6 @@ namespace peg
         // (1) Overloads unary &
 
         // Postfix operators
-
         Expr operator--(int) const { return ExprPtr(new CapExpr(exp)); }                            // text capture
         Expr operator()(const Expr &r) { return ExprPtr(new AttExpr(exp, r.exp)); }                 // attach expression
         Expr operator()(std::string s) { return operator()(Expr(s)); }                              // attach string
@@ -640,12 +639,10 @@ namespace peg
         Expr operator()(std::function<void(bool &)> f) { return operator()(Expr(f)); }              // attach semantic predicate
 
         // Binary operators 
-
         Expr operator>>(const Expr &r) const { return ExprPtr(new SeqExpr(exp, r.exp)); }           // sequence
         Expr operator|(const Expr &r) const { return ExprPtr(new AltExpr(exp, r.exp)); }            // ordered choice
 
         // Overloaded binary operators
-
         friend Expr operator>>(const Expr &r, std::string s) { return r >> Expr(s); }               // string overloads
         friend Expr operator>>(std::string s, const Expr &r) { return Expr(s) >> r; }
         friend Expr operator|(const Expr &r, std::string s) { return r | Expr(s); } 
@@ -669,7 +666,6 @@ namespace peg
     };
 
     // Lexical primitives
-
     inline Expr Str(std::string s) { return Expr(s); }                                              // string
     inline Expr Chr(int c) { return Expr(c); }                                                      // single char
     inline Expr Ccl(std::string s) { return Expr::ExprPtr(new Expr::CclExpr(s)); }                  // char class
@@ -678,7 +674,6 @@ namespace peg
     inline Expr Pred(std::function<void(bool &)> f) { return Expr(f); }                             // semantic predicate
 
     // Literals
-    
     inline namespace literals
     {
         inline Expr operator""_str(const char *s, std::size_t len) { return Str(std::string(s, len)); }     // string
@@ -687,61 +682,68 @@ namespace peg
     }
 
     // Grammar rules 
-
     class Rule : public Expr
     {
         // The root of this rule's expression tree
-
         ExprPtr root = nullptr;
 
-#ifdef PEG_ENABLE_CHECK
-        bool accessed = false;
-        bool init;
-        bool consumed;
+#ifdef PEG_DEBUG
+        // Variables for rule visitor
+        bool visiting = false, visited = false; 
+        unsigned my_cons;
 #endif
 
         // A rule expression is a structure that holds a reference to the rule. 
         // This indirection allows rules to refer to other rules before they are defined.
-
         struct RuleExpr : Expression
         {
             Rule &rule;
 
             RuleExpr(Rule &r) : rule(r) { }
             bool parse(matcher &m) const { return rule.parse(m); }
-#ifdef PEG_ENABLE_CHECK
-            bool visit(bool cons) const { return rule.visit(cons); }
+#ifdef PEG_DEBUG
+            void visit(unsigned &cons) const { rule.visit(cons); }
 #endif
         };
 
-#ifdef PEG_ENABLE_CHECK
-        // Follow the paths starting in this rule
+#ifdef PEG_DEBUG
+        // Visit the paths from this rule
+        void visit(unsigned &cons)  
+        {
+            static unsigned level;
 
-        bool visit(bool cons)  
-        { 
-            if ( !accessed )
+            if ( name )
+            { 
+                for ( unsigned i = 0 ; i < level ; i++ )
+                    std::cerr << "| "; 
+                std::cerr << name << (visited ? " (v)" : visiting? " (r)" : " ") << std::endl;
+                level++;
+            }
+
+            if ( visited )
+                cons += my_cons;
+            else if ( !visiting )
             {
                 if ( !root )
-                    throw bad_rule("Uninitialized rule");
-                accessed = true;
-                init = true;
-                consumed = root->visit(false);
-                init = false;
+                    throw bad_rule("Uninitialized rule");                    
+                my_cons = cons;
+                visiting = true;
+                root->visit(cons);
+                visited = true;
+                my_cons = cons - my_cons;   // what this rule consumes
             }
-            if ( init )         // recursing
-            {
-                if ( !cons )    // without consuming input
+            else                            // recursing...
+                if ( cons == my_cons )      // without consuming input
                     throw bad_rule("Left-recursive rule");
-                return true;
-            }
-            return cons || consumed;
+
+            if ( name ) 
+                level--;
         }
 #endif
 
     public:
 
         // Exceptions thrown
-
         class bad_rule : public std::exception
         {
             const char *str;
@@ -753,7 +755,6 @@ namespace peg
         };
 
         // Adjust the base of value stack indices and parse the root.
-
         bool parse(matcher &m) const 
         { 
             if ( !root )
@@ -765,25 +766,28 @@ namespace peg
             return r;
         }
 
-#ifdef PEG_ENABLE_CHECK
+#ifdef PEG_DEBUG
+        // Rule name
+        const char *name = nullptr;
+
         // Check the grammar starting here for uninitialized rules and 
         // left recursion. Can be done only once.
-
         void check()
         {
-            if ( accessed )
-                throw bad_rule("Cannot check more than once");
-            visit(false);
+            unsigned cons = 0;
+            visit(cons);
+            if ( name )
+                std::cerr << name << ": check OK" << std::endl;
+            else
+                std::cerr << "check OK" << std::endl;
         }
 #endif
 
         // Only default construction allowed. No coying.
-
         Rule() : Expr(ExprPtr(new RuleExpr(*this))) { }
         Rule(const Rule &r) = delete;
 
         // An expression assigns the root.
-
         Rule &operator=(const Expr &r) { root = r.exp; return *this; }
 
         // Copy assignment takes the source rule's expression.
@@ -792,7 +796,6 @@ namespace peg
         //      r = r;
         // 
         // This is non-trivial, it makes r left-recursive.
-
         Rule &operator=(const Rule &r) { return *this = Expr(r); }
 
         // Overloaded assignments for:
@@ -802,10 +805,13 @@ namespace peg
         //      char
         //      action
         //      semantic predicate
-
         template <typename T> Rule &operator=(T t) { return *this = Expr(t); }
     };
 
 }; 
+
+#ifdef PEG_DEBUG
+#define peg_debug(rule)     rule.name = #rule
+#endif
 
 #endif // PEG_H_INCLUDED
