@@ -9,7 +9,7 @@ Varcalc es una calculadora con las siguientes funciones:
     - Para imprimir resultados se dispone del comando print.
 
 Ignora el espacio en blanco, salvo los newlines. Lee sentencias de a una por línea;
-newline termina una sentencia.
+newline o punto y coma (;) terminan una sentencia.
 
 Las sentencias pueden ser:
 

@@ -9,7 +9,7 @@ Varcalc is a calculator with the following functions:
     - Results may be printed using the print command.
 
 Varcalc skips white space, but not newlines. It reads statements, one per line.
-Newline ends a statement.
+Newline or semi-colon end a statement.
 
 Statements can be:
 
