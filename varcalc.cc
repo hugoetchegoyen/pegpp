@@ -1,45 +1,16 @@
+// A floating point calculator supporting exponentiation and named variables.
+
 #include <iostream>
 #include <string>
 #include <map>
 
 #define PEG_USE_SHARED_PTR
-// #define PEG_DEBUG     // Uncomment this for checking the grammar
+//#define PEG_DEBUG     // Uncomment this for checking the grammar
 
 #include "peg.h"
 
 using namespace std;
 using namespace peg;
-
-/*
-    This calculator supports the four basic operations, unary plus and minus, 
-    raising to a power (with ^) and grouping with parenthesis. 
-
-    Values are of type double. Input format is a decimal number, optionally
-    preceded by a + or - sign, and optionally followed by an exponent (letter "e"
-    followed by a signed or unsigned integer).
-
-    Named variables are supported. Names have the format of C identifiers. 
-
-    Assignment is an expression:
-
-        a = b = c = 1
-
-    If a variable x is used before being defined, it is automatically defined as 0 
-    and a warning is printed ("defining x = 0").
-
-    The calculator accepts statements, terminated by newline or semicolon.
-
-    Statements can be:
-
-        <expression>            (execute)
-        print <expression>      (execute and print result)
-    
-    White space is ignored.
-    Empty lines are ignored.
-    Comments (everything after // up to the end of the line) are ignored. 
-    Invalid lines are reported as errors and ignored. 
-    Valid statements are executed.
-*/
 
 int main(int argc, char *argv[])
 {

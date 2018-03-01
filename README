@@ -1,25 +1,52 @@
-Varcalc is a calculator with the following functions:
+Examples using the pegplusplus library.
 
-    - Values are doubles.
-    - The four basic operations are supported (+, -, *. /).
-    - Raising to a power is supported (^).
-    - Unary + and - are supported.
-    - Grouping with parentheses is supported.
-    - Named variables are supported (names are like C identifiers).
-    - Results may be printed using the print command.
+Username
+--------
 
-Varcalc skips white space, but not newlines. It reads statements, one per line.
-Newline or semi-colon end a statement.
+This is a simple example showing that LEG parsers can be easily translated to
+pegplusplus. The LEG version (username.leg) was taken from the PEG/LEG distribution.
+
+The parser replaces all occurrences of the string "username" by the current user's 
+login name.
+
+Varcalc
+-------
+
+Varcalc is a calculator with the following features:
+
+    Values are doubles. Valid input formats: 
+
+        17
+        2.33
+        .28
+        3.21e3
+        22e-5
+
+    Operations supported:
+
+        binary +, -, * and /
+        exponentiation (^)
+        unary + and -
+        grouping (parentheses)
+        variable assignment
+        printing (print command)
+
+    Named variables: 
+
+        variable names have the format of C identifiers
+        assignment is an expression (assignments can be cascaded)
+
+Varcalc reads statements. Newline or semi-colon end a statement.
 
 Statements can be:
 
-    - <expression>
-    - print <expression>
-    - empty
+    <expression>
+    print <expression>
 
-Any text from // to the end of a line is a comment.
-
-Assignment is an expression, so assignments can be cascaded.
+Any text from // to the end of the line is a comment.
+White space, empty lines and comments are ignored. 
+Invalid statements are reported as errors and ignored. 
+Valid statements are executed.
 
 Let's assume the following input:
 
@@ -30,7 +57,7 @@ Let's assume the following input:
     print 2^(-1/2) 
 
 Variable c is being used without a previous assignment. This is valid, the variable is
-automatically initialized as 0 and a warning is printed on standard error.
+automatically initialized with value 0 and a warning is printed on standard error.
 
 This is the output:
 
@@ -39,7 +66,3 @@ This is the output:
     line 3: ERROR: hello!       (standard error)
     0                           (standard output)
     0.707107                    (standard output)
-
-Input format for numbers is a decimal number optionally followed by an exponent 
-(letter "e" followed by a signed or unsigned integer).
-
