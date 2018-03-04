@@ -259,6 +259,7 @@ namespace peg
         value_stack(const matcher &m, unsigned n = VALSIZE)  : mt(m) { values.reserve(n); }
 
         T &operator[](int idx) { return values[mt.get_base() + idx]; }
+		void clear() { values.clear(); }
     };
 
     template <typename T>
@@ -283,6 +284,7 @@ namespace peg
                 throw bad_index(); 
             return values[idx]; 
         }
+		void clear() { values.clear(); }
     };
 
     // Forward declarations
@@ -717,7 +719,7 @@ namespace peg
             { 
                 for ( unsigned i = 0 ; i < level ; i++ )
                     std::cerr << "| "; 
-                std::cerr << name << (visited ? " (v)" : visiting? " (r)" : " ") << std::endl;
+                std::cerr << name << (visited ? " (v)" : visiting ? " (r)" : "") << std::endl;
                 level++;
             }
 

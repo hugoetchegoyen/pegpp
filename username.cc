@@ -13,8 +13,9 @@ start   = "username"      { printf("%s", getlogin()); }
 
 int main()
 {
-    while (yyparse());
-        return 0;
+    while ( yyparse() )
+        ;
+    return 0;
 }
 
 Note: getlogin() replaced by cuserid().

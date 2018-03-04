@@ -5,7 +5,7 @@
 #include <map>
 
 #define PEG_USE_SHARED_PTR
-//#define PEG_DEBUG     // Uncomment this for checking the grammar
+// #define PEG_DEBUG     // Uncomment this for checking the grammar
 
 #include "peg.h"
 
@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 
     // Calculator grammar
 
-    Rule calc, error, statement, expression, term, factor, atom;
+    Rule calc, error, statement, expression, term, factor, ufactor, atom, uatom;
 
     calc        = WS >> ~statement >> ENDL
                 | WS >> error >> ENDL
@@ -81,14 +81,22 @@ int main(int argc, char *argv[])
                     )
                 ;
 
-    factor      = ADD >> factor                         ([&] { val[0] = val[1]; })         // unary plus
-                | SUB >> factor                         ([&] { val[0] = -val[1]; })        // unary minus
-                | atom >> *(
-                      POW >> factor                     ([&] { val[0] = pow(val[0], val[2]); })
+    factor      = ADD >> ufactor                        ([&] { val[0] = val[1]; })         // unary plus
+                | SUB >> ufactor                        ([&] { val[0] = -val[1]; })        // unary minus
+                | ufactor
+                ;
+
+    ufactor     = uatom >> *(
+                      POW >> atom                       ([&] { val[0] = pow(val[0], val[2]); })
                     )
                 ;
 
-    atom        = NUMBER 
+    atom        = ADD >> uatom                          ([&] { val[0] = val[1]; })         // unary plus
+                | SUB >> uatom                          ([&] { val[0] = -val[1]; })        // unary minus
+                | uatom
+                ;
+
+    uatom       = NUMBER 
                 | IDENT                                 ([&] 
                                                         {
                                                             if ( !var.count(name[0]) )
@@ -118,7 +126,9 @@ int main(int argc, char *argv[])
     peg_debug(expression);
     peg_debug(term);
     peg_debug(factor);
+    peg_debug(ufactor);
     peg_debug(atom);
+    peg_debug(uatom);
 
     // Check the grammar    
     calc.check();
