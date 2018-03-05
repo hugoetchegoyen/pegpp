@@ -17,6 +17,7 @@ Varcalc es una calculadora con las siguientes características:
     Los valores son dobles. Formatos de entrada aceptados:
 
         17
+        2.
         2.33
         .28
         3.21e3
@@ -24,12 +25,20 @@ Varcalc es una calculadora con las siguientes características:
     
     Operaciones soportadas:
 
-        +, -, * y / binarios
-        exponenciación (^) 
-        + y - unitarios       
+        suma/resta
+        multiplicación/división
+        exponenciación
         agrupación (paréntesis)
         asignación de variables
         impresión (comando print)
+
+    Operadores en orden decreciente de precedencia y su asociatividad:
+
+        ^       exponenciación              izquierda
+        + -     más/menos unitario          derecha
+        * /     multiplicación/divición     izquierda
+        + -     suma/resta                  izquierda
+        =       asignación                  derecha
 
     Variables con nombre:
 

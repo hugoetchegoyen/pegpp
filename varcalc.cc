@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 
     // Calculator grammar
 
-    Rule calc, error, statement, expression, term, factor, ufactor, atom, uatom;
+    Rule calc, error, statement, expression, term, factor, atom;
 
     calc        = WS >> ~statement >> ENDL
                 | WS >> error >> ENDL
@@ -81,22 +81,16 @@ int main(int argc, char *argv[])
                     )
                 ;
 
-    factor      = ADD >> ufactor                        ([&] { val[0] = val[1]; })         // unary plus
-                | SUB >> ufactor                        ([&] { val[0] = -val[1]; })        // unary minus
-                | ufactor
-                ;
-
-    ufactor     = uatom >> *(
+    factor      = ADD >> factor                         ([&] { val[0] = val[1]; })         // unary plus
+                | SUB >> factor                         ([&] { val[0] = -val[1]; })        // unary minus
+                | atom >> *(
                       POW >> atom                       ([&] { val[0] = pow(val[0], val[2]); })
                     )
                 ;
 
-    atom        = ADD >> uatom                          ([&] { val[0] = val[1]; })         // unary plus
-                | SUB >> uatom                          ([&] { val[0] = -val[1]; })        // unary minus
-                | uatom
-                ;
-
-    uatom       = NUMBER 
+    atom        = ADD >> atom                           ([&] { val[0] = val[1]; })         // unary plus
+                | SUB >> atom                           ([&] { val[0] = -val[1]; })        // unary minus
+                | NUMBER 
                 | IDENT                                 ([&] 
                                                         {
                                                             if ( !var.count(name[0]) )
@@ -126,9 +120,7 @@ int main(int argc, char *argv[])
     peg_debug(expression);
     peg_debug(term);
     peg_debug(factor);
-    peg_debug(ufactor);
     peg_debug(atom);
-    peg_debug(uatom);
 
     // Check the grammar    
     calc.check();

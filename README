@@ -17,6 +17,7 @@ Varcalc is a calculator with the following features:
     Values are doubles. Valid input formats: 
 
         17
+        2.
         2.33
         .28
         3.21e3
@@ -24,9 +25,9 @@ Varcalc is a calculator with the following features:
 
     Operations supported:
 
-        binary +, -, * and /
-        exponentiation (^)
-        unary + and -
+        addition/substraction
+        multiplication/division
+        exponentiation
         grouping (parentheses)
         variable assignment
         printing (print command)
@@ -35,6 +36,14 @@ Varcalc is a calculator with the following features:
 
         variable names have the format of C identifiers
         assignment is an expression (assignments can be cascaded)
+
+    Operators from highest to lowest precedence and their associativity:
+
+        ^       exponentiation      left
+        + -     unary plus/minus    right
+        * /     multiply/divide     left
+        + -     add/substract       left
+        =       assignment          right
 
 Varcalc reads statements. Newline or semi-colon end a statement.
 
@@ -50,7 +59,7 @@ Valid statements are executed.
 
 Let's assume the following input:
 
-    a = b = (23 + c)
+    a = b = 23 + c
     print 2 * a
     hello!
     print c
