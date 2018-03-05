@@ -36,7 +36,7 @@ Varcalc es una calculadora con las siguientes características:
 
         ^       exponenciación              izquierda
         + -     más/menos unitario          derecha
-        * /     multiplicación/divición     izquierda
+        * /     multiplicación/división     izquierda
         + -     suma/resta                  izquierda
         =       asignación                  derecha
 
@@ -59,7 +59,7 @@ Las sentencias válidas se ejecutan.
 
 Supongamos la siguiente entrada:
 
-    a = b = (23 + c)
+    a = b = 23 + c
     print 2 * a
     hello!
     print c
