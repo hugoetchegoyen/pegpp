@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
     Rule SPACE, EOL, ALPHA, ALNUM, SIGN, DIGIT, DOT, UDEC, EXP, COMM;     
 
     SPACE       = " \t\f"_ccl;
-    EOL         = ("\r\n" | "\r\n"_ccl)                ([&] { ++line; });
+    EOL         = ("\r\n" | "\r\n"_ccl)                 _( ++line; );
     ALPHA       = "_a-zA-Z"_ccl;
     ALNUM       = "_a-zA-Z0-9"_ccl;
     SIGN        = "+-"_ccl;
@@ -50,8 +50,8 @@ int main(int argc, char *argv[])
     EQUALS      = '=' >> WS;
     ENDL        = (~COMM >> EOL | ';') >> WS;
     PRINT       = "print" >> !ALNUM  >> WS;
-    IDENT       = !PRINT >> (ALPHA >> *ALNUM)-- >> WS   ([&] { name[0] = m.text(); });
-    NUMBER      = (UDEC >> ~EXP)-- >> WS                ([&] { val[0] = stof(m.text()); });
+    IDENT       = !PRINT >> (ALPHA >> *ALNUM)-- >> WS   _( name[0] = m.text(); );
+    NUMBER      = (UDEC >> ~EXP)-- >> WS                _( val[0] = stof(m.text()); );
 
     // Calculator grammar
 
@@ -61,48 +61,47 @@ int main(int argc, char *argv[])
                 | WS >> error >> ENDL
                 ;    
 
-    error       = (+(!ENDL >> Any()))--                 ([&] { cerr << "line " << line << ": ERROR: " << m.text() << endl; })
+    error       = (+(!ENDL >> Any()))--                 _( cerr << "line " << line << ": ERROR: " << m.text() << endl; )
                 ;
 
-    statement   = PRINT >> expression                   ([&] { cout << val[1] << endl; })
+    statement   = PRINT >> expression                   _( cout << val[1] << endl; )
                 | expression    
                 ;
 
-    expression  = IDENT >> EQUALS >> expression         ([&] { val[0] = var[name[0]] = val[2]; })
+    expression  = IDENT >> EQUALS >> expression         _( val[0] = var[name[0]] = val[2]; )
                 | term >> *(    
-                      ADD >> term                       ([&] { val[0] += val[2]; })
-                    | SUB >> term                       ([&] { val[0] -= val[2]; })
+                      ADD >> term                       _( val[0] += val[2]; )
+                    | SUB >> term                       _( val[0] -= val[2]; )
                     )
                 ;
 
     term        = factor >> *(
-                      MUL >> factor                     ([&] { val[0] *= val[2]; })    
-                    | DIV >> factor                     ([&] { val[0] /= val[2]; })
+                      MUL >> factor                     _( val[0] *= val[2]; )    
+                    | DIV >> factor                     _( val[0] /= val[2]; )
                     )
                 ;
 
-    factor      = ADD >> factor                         ([&] { val[0] = val[1]; })         // unary plus
-                | SUB >> factor                         ([&] { val[0] = -val[1]; })        // unary minus
+    factor      = ADD >> factor                         _( val[0] = val[1]; )         // unary plus
+                | SUB >> factor                         _( val[0] = -val[1]; )        // unary minus
                 | atom >> *(
-                      POW >> atom                       ([&] { val[0] = pow(val[0], val[2]); })
+                      POW >> atom                       _( val[0] = pow(val[0], val[2]); )
                     )
                 ;
 
-    atom        = ADD >> atom                           ([&] { val[0] = val[1]; })         // unary plus
-                | SUB >> atom                           ([&] { val[0] = -val[1]; })        // unary minus
+    atom        = ADD >> atom                           _( val[0] = val[1]; )         // unary plus
+                | SUB >> atom                           _( val[0] = -val[1]; )        // unary minus
                 | NUMBER 
-                | IDENT                                 ([&] 
-                                                        {
+                | IDENT                                 _(
                                                             if ( !var.count(name[0]) )
                                                                 cerr << "line " << line << ": defining " << name[0] << " = 0\n";
                                                             val[0] = var[name[0]]; 
-                                                        })
-                | LPAR >> expression >> RPAR            ([&] { val[0] = val[1]; })
+                                                         )
+                | LPAR >> expression >> RPAR            _( val[0] = val[1]; )
                 ;
 
 #ifdef PEG_DEBUG
 
-    // Rules to be debugged while checking
+    // Rules to be debugged while checkings
     peg_debug(PRINT);
     peg_debug(IDENT);
     peg_debug(EQUALS);

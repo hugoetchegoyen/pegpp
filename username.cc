@@ -35,8 +35,8 @@ int main()
     matcher m;
     Rule start;
 
-    start   = "username"_str        ([&] { cout << cuserid(NULL); })
-            | Any()--               ([&] { cout << m.text(); })
+    start   = "username"_lit        _( cout << cuserid(NULL); )
+            | Any()--               _( cout << m.text(); )
             ;
 
     while ( start.parse(m) )

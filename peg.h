@@ -90,7 +90,7 @@ namespace peg
         unsigned base = 0;
 
         // Make a character class from a string
-        static char_class make_class(std::string s) 
+        static char_class make_class(const std::string &s) 
         {
             char_class ccl;
             const char *p = s.c_str(), *q = p + s.length(); 
@@ -136,7 +136,7 @@ namespace peg
 
         bool match_any() { int c; return getc(c); }
 
-        bool match_string(const std::string s)
+        bool match_string(const std::string &s)
         {
             int c;
             unsigned len = s.length();
@@ -150,7 +150,7 @@ namespace peg
             return true;
         }
 
-        bool match_char(int ch)
+        bool match_char(char ch)
         {
             int c;
             unsigned mpos = pos;
@@ -292,8 +292,8 @@ namespace peg
 
     inline namespace literals
     {
-        inline Expr operator""_str(const char *s, std::size_t len);
-        inline Expr operator""_chr(char c);
+        inline Expr operator""_lit(const char *s, std::size_t len);
+        inline Expr operator""_lit(char c);
         inline Expr operator""_ccl(const char *s, std::size_t len);
     }
 
@@ -302,15 +302,15 @@ namespace peg
     class Expr
     {
         // Friends
-        friend Expr Str(std::string s);
-        friend Expr Chr(int c);
-        friend Expr Ccl(std::string s);
+        friend Expr Lit(const std::string &s);
+        friend Expr Lit(char c);
+        friend Expr Ccl(const std::string &s);
         friend Expr Any();
         friend Expr Do(std::function<void()> f);
         friend Expr Pred(std::function<void(bool &)> f);
 
-        friend Expr literals::operator""_str(const char *s, std::size_t len);
-        friend Expr literals::operator""_chr(char c);
+        friend Expr literals::operator""_lit(const char *s, std::size_t len);
+        friend Expr literals::operator""_lit(char c);
         friend Expr literals::operator""_ccl(const char *s, std::size_t len);
 
         friend class Rule;
@@ -336,7 +336,7 @@ namespace peg
         {
             std::string str;
 
-            StrExpr(std::string s) : str(s) { }
+            StrExpr(const std::string &s) : str(s) { }
             bool parse(matcher &m) const { return m.match_string(str); }
 #ifdef PEG_DEBUG
             void visit(unsigned &cons) const { cons += str.length(); }
@@ -345,9 +345,9 @@ namespace peg
 
         struct ChrExpr : Expression         // single char
         {
-            int ch;
+            char ch;
 
-            ChrExpr(int c) : ch(c) { }
+            ChrExpr(char c) : ch(c) { }
             bool parse(matcher &m) const { return m.match_char(ch); }
 #ifdef PEG_DEBUG
             void visit(unsigned &cons) const { cons++; }
@@ -358,7 +358,7 @@ namespace peg
         {
             matcher::char_class ccl;
 
-            CclExpr(std::string s) : ccl(matcher::make_class(s)) { }
+            CclExpr(const std::string &s) : ccl(matcher::make_class(s)) { }
             bool parse(matcher &m) const { return m.match_class(ccl); }
 #ifdef PEG_DEBUG
             void visit(unsigned &cons) const { cons++; }
@@ -616,8 +616,8 @@ namespace peg
         Expr &operator=(const Expr &r) = default;
 
         Expr(ExprPtr e) : exp(e) { }                                                                // from expression pointer
-        Expr(std::string s) : exp(ExprPtr(new StrExpr(s))) { }                                      // from string
-        Expr(int c) : exp(ExprPtr(new ChrExpr(c))) { }                                              // from single char
+        Expr(const std::string &s) : exp(ExprPtr(new StrExpr(s))) { }                               // from string
+        Expr(char c) : exp(ExprPtr(new ChrExpr(c))) { }                                             // from single char
         Expr(std::function<void()> f) : exp(ExprPtr(new DoExpr(f))) { }                             // from action
         Expr(std::function<void(bool &)> f) : exp(ExprPtr(new PredExpr(f))) { }                     // from semantic predicate
 
@@ -636,8 +636,8 @@ namespace peg
         // Postfix operators
         Expr operator--(int) const { return ExprPtr(new CapExpr(exp)); }                            // text capture
         Expr operator()(const Expr &r) { return ExprPtr(new AttExpr(exp, r.exp)); }                 // attach expression
-        Expr operator()(std::string s) { return operator()(Expr(s)); }                              // attach string
-        Expr operator()(int c) { return operator()(Expr(c)); }                                      // attach single char
+        Expr operator()(const std::string &s) { return operator()(Expr(s)); }                       // attach string
+        Expr operator()(char c) { return operator()(Expr(c)); }                                     // attach single char
         Expr operator()(std::function<void()> f) { return operator()(Expr(f)); }                    // attach action
         Expr operator()(std::function<void(bool &)> f) { return operator()(Expr(f)); }              // attach semantic predicate
 
@@ -646,15 +646,15 @@ namespace peg
         Expr operator|(const Expr &r) const { return ExprPtr(new AltExpr(exp, r.exp)); }            // ordered choice
 
         // Overloaded binary operators
-        friend Expr operator>>(const Expr &r, std::string s) { return r >> Expr(s); }               // string overloads
-        friend Expr operator>>(std::string s, const Expr &r) { return Expr(s) >> r; }
-        friend Expr operator|(const Expr &r, std::string s) { return r | Expr(s); } 
-        friend Expr operator|(std::string s, const Expr &r) { return Expr(s) | r; } 
+        friend Expr operator>>(const Expr &r, const std::string &s) { return r >> Expr(s); }        // string overloads
+        friend Expr operator>>(const std::string &s, const Expr &r) { return Expr(s) >> r; }
+        friend Expr operator|(const Expr &r, const std::string &s) { return r | Expr(s); } 
+        friend Expr operator|(const std::string &s, const Expr &r) { return Expr(s) | r; } 
 
-        friend Expr operator>>(const Expr &r, int c) { return r >> Expr(c); }                       // single char overloads
-        friend Expr operator>>(int c, const Expr &r) { return Expr(c) >> r; }
-        friend Expr operator|(const Expr &r, int c) { return r | Expr(c); }
-        friend Expr operator|(int c, const Expr &r) { return Expr(c) | r; }
+        friend Expr operator>>(const Expr &r, char c) { return r >> Expr(c); }                      // single char overloads
+        friend Expr operator>>(char c, const Expr &r) { return Expr(c) >> r; }
+        friend Expr operator|(const Expr &r, char c) { return r | Expr(c); }
+        friend Expr operator|(char c, const Expr &r) { return Expr(c) | r; }
 
         friend Expr operator>>(const Expr &r, std::function<void()> f) { return r >> Expr(f); }     // action overloads
         friend Expr operator>>(std::function<void()> f, const Expr &r) { return Expr(f) >> r; }
@@ -669,9 +669,9 @@ namespace peg
     };
 
     // Lexical primitives
-    inline Expr Str(std::string s) { return Expr(s); }                                              // string
-    inline Expr Chr(int c) { return Expr(c); }                                                      // single char
-    inline Expr Ccl(std::string s) { return Expr::ExprPtr(new Expr::CclExpr(s)); }                  // char class
+    inline Expr Lit(const std::string &s) { return Expr(s); }                                       // string
+    inline Expr Lit(char c) { return Expr(c); }                                                     // single char
+    inline Expr Ccl(const std::string &s) { return Expr::ExprPtr(new Expr::CclExpr(s)); }           // char class
     inline Expr Any() { return Expr::ExprPtr(new Expr::AnyExpr); }                                  // any char
     inline Expr Do(std::function<void()> f) { return Expr(f); }                                     // action
     inline Expr Pred(std::function<void(bool &)> f) { return Expr(f); }                             // semantic predicate
@@ -679,8 +679,8 @@ namespace peg
     // Literals
     inline namespace literals
     {
-        inline Expr operator""_str(const char *s, std::size_t len) { return Str(std::string(s, len)); }     // string
-        inline Expr operator""_chr(char c) { return Chr(c); }                                               // single char
+        inline Expr operator""_lit(const char *s, std::size_t len) { return Lit(std::string(s, len)); }     // string
+        inline Expr operator""_lit(char c) { return Lit(c); }                                               // single char
         inline Expr operator""_ccl(const char *s, std::size_t len) { return Ccl(std::string(s, len)); }     // char class
     }
 
@@ -794,15 +794,12 @@ namespace peg
         Rule &operator=(const Expr &r) { root = r.exp; return *this; }
 
         // Copy assignment takes the source rule's expression.
-        //
         //      Rule r;
         //      r = r;
-        // 
         // This is non-trivial, it makes r left-recursive.
         Rule &operator=(const Rule &r) { return *this = Expr(r); }
 
         // Overloaded assignments for:
-        //
         //      string
         //      const char *
         //      char
@@ -816,5 +813,8 @@ namespace peg
 #ifdef PEG_DEBUG
 #define peg_debug(rule)     rule.name = #rule
 #endif
+
+#define _(code...)          (peg::Do([&]{ code }))  
+#define __(code...)         (peg::Pred([&](bool &__r){ __r = ([&]()-> bool { code })(); }))  
 
 #endif // PEG_H_INCLUDED
