@@ -74,22 +74,57 @@ namespace peg
             { 
                 char32_t low; 
                 char32_t high; 
+    
                 char_range(char32_t lo, char32_t hi) : low(lo), high(hi) { }
                 bool operator<(const char_range &r) const { return high < r.low; }
             };
+
             std::set<char_range> cs;
             bool inverted = false; 
+
         public:
-            void invert(bool value = true) { inverted = value; }
-            void add(char32_t lo, char32_t hi) { cs.insert(char_range(lo, hi)); }
-            void add(char32_t value) { cs.insert(char_range(value, value)); }
+
+            char_class(const std::string &s) 
+            {
+                // Convert s to 32-bit string
+                struct cvt : std::codecvt<char32_t, char, std::mbstate_t> { };
+                std::wstring_convert<cvt, char32_t> converter;
+                std::u32string us = converter.from_bytes(s);
+
+                const char32_t *p = us.c_str(), *q = p + us.length(); 
+     
+                if ( p == q )
+                    return;
+
+                if ( p[0] == '^' )
+                {
+                    inverted = true;
+                    p++;
+                }
+
+                while ( p < q )
+                    if ( p + 2 < q && p[1] == '-' )
+                    {
+                        if ( p[2] >= p[0] )
+                            cs.insert(char_range(p[0], p[2]));
+                        p += 3;
+                    }
+                    else
+                    {
+                        cs.insert(char_range(p[0], p[0]));
+                        p++;
+                    }
+            }
+
             bool find(char32_t value) const
             { 
                 bool found = cs.count(char_range(value, value));
                 return (!inverted && found) || (inverted && !found); 
             }
         };
+ 
         struct mark { unsigned pos, actpos, begin, end; };
+ 
         struct action
         {
             std::function<void()> func;
@@ -111,36 +146,6 @@ namespace peg
         unsigned level = 0;
         unsigned base = 0;
 
-        // Make a character class from a string
-        static char_class make_class(const std::string &s, char_class &ccl) 
-        {
-            // Convert s to 32-bit string
-            struct cvt : std::codecvt<char32_t, char, std::mbstate_t> { };
-            std::wstring_convert<cvt, char32_t> converter;
-            std::u32string us = converter.from_bytes(s);
-
-            const char32_t *p = us.c_str(), *q = p + us.length(); 
-
-            if ( p[0] == '^' )
-            {
-                ccl.invert();
-                p++;
-            }
-            while ( p < q )
-                if ( p + 2 < q && p[1] == '-' )
-                {
-                    ccl.add(p[0], p[2]);
-                    p += 3;
-                }
-                else
-                {
-                    ccl.add(p[0]);
-                    p++;
-                }
-
-            return ccl;
-        }
-    
         // Get an 8-bit char
         bool getc(char &c) 
         {
@@ -152,6 +157,7 @@ namespace peg
                     return false;
                 ibuf.append(buf, n);
             }
+
             c = ibuf[pos++]; 
             return true;
         }
@@ -195,8 +201,10 @@ namespace peg
                 default:
                     return true;
             }
-            while ( n-- && getc(c) )
+            while ( n-- )
             {
+                if ( !getc(c) )
+                    return false;
                 u <<= 6 ;
                 u |= (c & 0x3F);
             }
@@ -212,6 +220,7 @@ namespace peg
             char c;
             unsigned len = s.length();
             unsigned mpos = pos;
+
             for ( unsigned i = 0 ; i < len ; i++ )
                 if ( !getc(c) || c != s[i] )
                 {
@@ -225,6 +234,7 @@ namespace peg
         {
             char32_t u;
             unsigned mpos = pos;
+
             if ( !getc32(u) || u != ch )
             {
                 pos = mpos;
@@ -237,6 +247,7 @@ namespace peg
         {
             char32_t u;
             unsigned mpos = pos;
+ 
             if ( !getc32(u) || !ccl.find(u) )
             {
                 pos = mpos;
@@ -291,6 +302,7 @@ namespace peg
                 level = act.level;
                 act.func();
             }
+ 
             actpos = 0;
 
             ibuf.erase(0, pos); 
@@ -431,7 +443,7 @@ namespace peg
         {
             matcher::char_class ccl;
 
-            CclExpr(const std::string &s) { matcher::make_class(s, ccl); }
+            CclExpr(const std::string &s) : ccl(s) { }
             bool parse(matcher &m) const { return m.match_class(ccl); }
 #ifdef PEG_DEBUG
             void visit(unsigned &cons) const { cons++; }
