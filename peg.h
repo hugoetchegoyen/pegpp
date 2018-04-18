@@ -6,11 +6,13 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <bitset>
+#include <set>
 #include <utility>
 #include <functional>
 #include <exception>
 #include <algorithm>
+#include <codecvt>
+#include <locale>
 
 #ifdef PEG_USE_SHARED_PTR
 #include <memory>
@@ -66,7 +68,27 @@ namespace peg
         template <typename T> friend class value_map;
 
         // Types
-        typedef std::bitset<256> char_class;
+        class char_class  
+        { 
+            struct char_range 
+            { 
+                char32_t low; 
+                char32_t high; 
+                char_range(char32_t lo, char32_t hi) : low(lo), high(hi) { }
+                bool operator<(const char_range &r) const { return high < r.low; }
+            };
+            std::set<char_range> cs;
+            bool inverted = false; 
+        public:
+            void invert(bool value = true) { inverted = value; }
+            void add(char32_t lo, char32_t hi) { cs.insert(char_range(lo, hi)); }
+            void add(char32_t value) { cs.insert(char_range(value, value)); }
+            bool find(char32_t value) const
+            { 
+                bool found = cs.count(char_range(value, value));
+                return (!inverted && found) || (inverted && !found); 
+            }
+        };
         struct mark { unsigned pos, actpos, begin, end; };
         struct action
         {
@@ -90,35 +112,37 @@ namespace peg
         unsigned base = 0;
 
         // Make a character class from a string
-        static char_class make_class(const std::string &s) 
+        static char_class make_class(const std::string &s, char_class &ccl) 
         {
-            char_class ccl;
-            const char *p = s.c_str(), *q = p + s.length(); 
-            bool value = true;
+            // Convert s to 32-bit string
+            struct cvt : std::codecvt<char32_t, char, std::mbstate_t> { };
+            std::wstring_convert<cvt, char32_t> converter;
+            std::u32string us = converter.from_bytes(s);
 
-            if ( *p == '^' )
+            const char32_t *p = us.c_str(), *q = p + us.length(); 
+
+            if ( p[0] == '^' )
             {
-                ccl.set();
-                value = false;
+                ccl.invert();
                 p++;
             }
             while ( p < q )
-            {
-                unsigned c = *p++ & 0xFF;
-                ccl.set(c, value);
-                if ( p + 1 < q && *p == '-' )
+                if ( p + 2 < q && p[1] == '-' )
                 {
-                    unsigned d = p[1] & 0xFF;
-                    while ( c < d )
-                        ccl.set(++c, value);
-                    p += 2;
+                    ccl.add(p[0], p[2]);
+                    p += 3;
                 }
-            }
+                else
+                {
+                    ccl.add(p[0]);
+                    p++;
+                }
+
             return ccl;
         }
     
-        // Get one char
-        bool getc(int &c) 
+        // Get an 8-bit char
+        bool getc(char &c) 
         {
             if ( pos == ibuf.length() )                     // try to get more input
             {
@@ -132,13 +156,60 @@ namespace peg
             return true;
         }
 
+        // Get a 32-bit char 
+        bool getc32(char32_t &u)
+        {
+            char c;
+            int n;
+
+            if ( !getc(c) )
+                return false;
+
+            u = c & 0xFF;
+
+            if ( (c & 0xC0) != 0xC0 ) 
+                return true;
+
+            // Decode utf8 sequence
+            switch ( (c >> 3) & 0x7 )
+            {
+                case 0x0:           // 2-byte seq
+                case 0x1:
+                case 0x2:
+                case 0x3:
+                    u &= 0x1F;
+                    n = 1;
+                    break;
+
+                case 0x4:           // 3-byte seq
+                case 0x5:
+                    u &= 0x0F;
+                    n = 2;
+                    break;
+
+                case 0x6:           // 4-byte seq
+                    u &= 0x07;
+                    n = 3;
+                    break;
+
+                default:
+                    return true;
+            }
+            while ( n-- && getc(c) )
+            {
+                u <<= 6 ;
+                u |= (c & 0x3F);
+            }
+            return true; 
+        }
+
         // Matching primitives
 
-        bool match_any() { int c; return getc(c); }
+        bool match_any() { char32_t c; return getc32(c); }
 
         bool match_string(const std::string &s)
         {
-            int c;
+            char c;
             unsigned len = s.length();
             unsigned mpos = pos;
             for ( unsigned i = 0 ; i < len ; i++ )
@@ -150,11 +221,11 @@ namespace peg
             return true;
         }
 
-        bool match_char(char ch)
+        bool match_char(char32_t ch)
         {
-            int c;
+            char32_t u;
             unsigned mpos = pos;
-            if ( !getc(c) || c != ch )
+            if ( !getc32(u) || u != ch )
             {
                 pos = mpos;
                 return false;
@@ -164,9 +235,9 @@ namespace peg
 
         bool match_class(const char_class ccl)
         {
-            int c;
+            char32_t u;
             unsigned mpos = pos;
-            if ( !getc(c) || !ccl[c & 0xFF] )
+            if ( !getc32(u) || !ccl.find(u) )
             {
                 pos = mpos;
                 return false;
@@ -292,8 +363,9 @@ namespace peg
 
     inline namespace literals
     {
-        inline Expr operator""_lit(const char *s, std::size_t len);
         inline Expr operator""_lit(char c);
+        inline Expr operator""_lit(char32_t c);
+        inline Expr operator""_lit(const char *s, std::size_t len);
         inline Expr operator""_ccl(const char *s, std::size_t len);
     }
 
@@ -302,15 +374,16 @@ namespace peg
     class Expr
     {
         // Friends
+        friend Expr Lit(char32_t c);
         friend Expr Lit(const std::string &s);
-        friend Expr Lit(char c);
         friend Expr Ccl(const std::string &s);
         friend Expr Any();
         friend Expr Do(std::function<void()> f);
         friend Expr Pred(std::function<void(bool &)> f);
 
-        friend Expr literals::operator""_lit(const char *s, std::size_t len);
         friend Expr literals::operator""_lit(char c);
+        friend Expr literals::operator""_lit(char32_t c);
+        friend Expr literals::operator""_lit(const char *s, std::size_t len);
         friend Expr literals::operator""_ccl(const char *s, std::size_t len);
 
         friend class Rule;
@@ -345,9 +418,9 @@ namespace peg
 
         struct ChrExpr : Expression         // single char
         {
-            char ch;
+            char32_t ch;
 
-            ChrExpr(char c) : ch(c) { }
+            ChrExpr(char32_t c) : ch(c) { }
             bool parse(matcher &m) const { return m.match_char(ch); }
 #ifdef PEG_DEBUG
             void visit(unsigned &cons) const { cons++; }
@@ -358,7 +431,7 @@ namespace peg
         {
             matcher::char_class ccl;
 
-            CclExpr(const std::string &s) : ccl(matcher::make_class(s)) { }
+            CclExpr(const std::string &s) { matcher::make_class(s, ccl); }
             bool parse(matcher &m) const { return m.match_class(ccl); }
 #ifdef PEG_DEBUG
             void visit(unsigned &cons) const { cons++; }
@@ -617,7 +690,7 @@ namespace peg
 
         Expr(ExprPtr e) : exp(e) { }                                                                // from expression pointer
         Expr(const std::string &s) : exp(ExprPtr(new StrExpr(s))) { }                               // from string
-        Expr(char c) : exp(ExprPtr(new ChrExpr(c))) { }                                             // from single char
+        Expr(char32_t c) : exp(ExprPtr(new ChrExpr(c))) { }                                         // from single char
         Expr(std::function<void()> f) : exp(ExprPtr(new DoExpr(f))) { }                             // from action
         Expr(std::function<void(bool &)> f) : exp(ExprPtr(new PredExpr(f))) { }                     // from semantic predicate
 
@@ -637,7 +710,7 @@ namespace peg
         Expr operator--(int) const { return ExprPtr(new CapExpr(exp)); }                            // text capture
         Expr operator()(const Expr &r) { return ExprPtr(new AttExpr(exp, r.exp)); }                 // attach expression
         Expr operator()(const std::string &s) { return operator()(Expr(s)); }                       // attach string
-        Expr operator()(char c) { return operator()(Expr(c)); }                                     // attach single char
+        Expr operator()(char32_t c) { return operator()(Expr(c)); }                                 // attach single char
         Expr operator()(std::function<void()> f) { return operator()(Expr(f)); }                    // attach action
         Expr operator()(std::function<void(bool &)> f) { return operator()(Expr(f)); }              // attach semantic predicate
 
@@ -651,10 +724,10 @@ namespace peg
         friend Expr operator|(const Expr &r, const std::string &s) { return r | Expr(s); } 
         friend Expr operator|(const std::string &s, const Expr &r) { return Expr(s) | r; } 
 
-        friend Expr operator>>(const Expr &r, char c) { return r >> Expr(c); }                      // single char overloads
-        friend Expr operator>>(char c, const Expr &r) { return Expr(c) >> r; }
-        friend Expr operator|(const Expr &r, char c) { return r | Expr(c); }
-        friend Expr operator|(char c, const Expr &r) { return Expr(c) | r; }
+        friend Expr operator>>(const Expr &r, char32_t c) { return r >> Expr(c); }                  // single char overloads
+        friend Expr operator>>(char32_t c, const Expr &r) { return Expr(c) >> r; }
+        friend Expr operator|(const Expr &r, char32_t c) { return r | Expr(c); }
+        friend Expr operator|(char32_t c, const Expr &r) { return Expr(c) | r; }
 
         friend Expr operator>>(const Expr &r, std::function<void()> f) { return r >> Expr(f); }     // action overloads
         friend Expr operator>>(std::function<void()> f, const Expr &r) { return Expr(f) >> r; }
@@ -670,7 +743,7 @@ namespace peg
 
     // Lexical primitives
     inline Expr Lit(const std::string &s) { return Expr(s); }                                       // string
-    inline Expr Lit(char c) { return Expr(c); }                                                     // single char
+    inline Expr Lit(char32_t c) { return Expr(c); }                                                 // single char
     inline Expr Ccl(const std::string &s) { return Expr::ExprPtr(new Expr::CclExpr(s)); }           // char class
     inline Expr Any() { return Expr::ExprPtr(new Expr::AnyExpr); }                                  // any char
     inline Expr Do(std::function<void()> f) { return Expr(f); }                                     // action
@@ -679,9 +752,10 @@ namespace peg
     // Literals
     inline namespace literals
     {
-        inline Expr operator""_lit(const char *s, std::size_t len) { return Lit(std::string(s, len)); }     // string
-        inline Expr operator""_lit(char c) { return Lit(c); }                                               // single char
-        inline Expr operator""_ccl(const char *s, std::size_t len) { return Ccl(std::string(s, len)); }     // char class
+        inline Expr operator""_lit(char c) { return Lit(c); }                                           // single char
+        inline Expr operator""_lit(char32_t c) { return Lit(c); }                                       // single char
+        inline Expr operator""_lit(const char *s, std::size_t len) { return Lit(std::string(s, len)); } // string
+        inline Expr operator""_ccl(const char *s, std::size_t len) { return Ccl(std::string(s, len)); } // char class
     }
 
     // Grammar rules 
