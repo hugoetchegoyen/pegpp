@@ -77,10 +77,35 @@ namespace peg
     
                 char_range(char32_t lo, char32_t hi) : low(lo), high(hi) { }
                 bool operator<(const char_range &r) const { return high < r.low; }
+                void merge(const char_range &cr) 
+                {
+                    if ( cr.low < low )
+                        low = cr.low;
+                    if ( cr.high > high )
+                        high = cr.high;
+                }
             };
 
             std::set<char_range> cs;
-            bool inverted = false; 
+            bool inverted = false;
+
+            void add_range(char32_t lo, char32_t hi)
+            {
+                if ( lo > hi )
+                    return;
+
+                char_range cr(lo, hi);
+
+                // Merge and remove overlapping ranges
+                for ( auto iter = cs.find(cr) ; iter != cs.end() ; iter = cs.find(cr) )
+                {
+                    cr.merge(*iter);
+                    cs.erase(iter);
+                }
+ 
+                // Insert aggregated range
+                cs.insert(cr);
+            }
 
         public:
 
@@ -105,13 +130,12 @@ namespace peg
                 while ( p < q )
                     if ( p + 2 < q && p[1] == '-' )
                     {
-                        if ( p[2] >= p[0] )
-                            cs.insert(char_range(p[0], p[2]));
+                        add_range(p[0], p[2]);
                         p += 3;
                     }
                     else
                     {
-                        cs.insert(char_range(p[0], p[0]));
+                        add_range(p[0], p[0]);
                         p++;
                     }
             }
@@ -119,7 +143,7 @@ namespace peg
             bool find(char32_t value) const
             { 
                 bool found = cs.count(char_range(value, value));
-                return (!inverted && found) || (inverted && !found); 
+                return inverted ? !found : found; 
             }
         };
  
@@ -146,10 +170,10 @@ namespace peg
         unsigned level = 0;
         unsigned base = 0;
 
-        // Get an 8-bit char
+        // Read a raw char from input.
         bool getc(char &c) 
         {
-            if ( pos == ibuf.length() )                     // try to get more input
+            if ( pos == ibuf.length() )     // try to get more input
             {
                 in.read(buf, BUFLEN);
                 int n = in.gcount();
@@ -162,7 +186,8 @@ namespace peg
             return true;
         }
 
-        // Get a 32-bit char 
+        // Read a 32-bit char from input.
+        // Assumes (and does not check) correct utf8 encoding.
         bool getc32(char32_t &u)
         {
             char c;
@@ -173,13 +198,13 @@ namespace peg
 
             u = c & 0xFF;
 
-            if ( (c & 0xC0) != 0xC0 ) 
+            if ( (c & 0xC0) != 0xC0 )   // not an utf8 sequence
                 return true;
 
-            // Decode utf8 sequence
+            // Decode first byte of sequence
             switch ( (c >> 3) & 0x7 )
             {
-                case 0x0:           // 2-byte seq
+                case 0x0:               // 2-byte sequence
                 case 0x1:
                 case 0x2:
                 case 0x3:
@@ -187,13 +212,13 @@ namespace peg
                     n = 1;
                     break;
 
-                case 0x4:           // 3-byte seq
+                case 0x4:               // 3-byte sequence
                 case 0x5:
                     u &= 0x0F;
                     n = 2;
                     break;
 
-                case 0x6:           // 4-byte seq
+                case 0x6:               // 4-byte sequence
                     u &= 0x07;
                     n = 3;
                     break;
@@ -201,13 +226,15 @@ namespace peg
                 default:
                     return true;
             }
-            while ( n-- )
+
+            while ( n-- )               // continuation bytes
             {
                 if ( !getc(c) )
                     return false;
                 u <<= 6 ;
                 u |= (c & 0x3F);
             }
+
             return true; 
         }
 
@@ -227,6 +254,7 @@ namespace peg
                     pos = mpos;
                     return false;
                 }
+
             return true;
         }
 
@@ -240,6 +268,7 @@ namespace peg
                 pos = mpos;
                 return false;
             }
+
             return true;
         }
 
@@ -253,6 +282,7 @@ namespace peg
                 pos = mpos;
                 return false;
             }
+
             return true;
         }
 
@@ -901,6 +931,7 @@ namespace peg
 #endif
 
 #define _(code...)          (peg::Do([&]{ code }))  
-#define __(code...)         (peg::Pred([&](bool &__r){ __r = ([&]()-> bool { code })(); }))  
+#define _if(cond...)        (peg::Pred([&](bool &__r){ __r = (cond); }))  
+#define _pr(code...)        (peg::Pred([&](bool &__r){ __r = [&]()->bool{ code }(); }))  
 
 #endif // PEG_H_INCLUDED
