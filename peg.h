@@ -272,7 +272,7 @@ namespace peg
             return true;
         }
 
-        bool match_class(const char_class ccl)
+        bool match_class(const char_class &ccl)
         {
             char32_t u;
             unsigned mpos = pos;
