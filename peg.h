@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <bitset>
 #include <utility>
 #include <functional>
 #include <exception>
@@ -70,6 +71,7 @@ namespace peg
         // Types
         class char_class  
         { 
+
             struct char_range 
             { 
                 char32_t low; 
@@ -86,14 +88,21 @@ namespace peg
                 }
             };
 
-            std::set<char_range> cs;
+            static const unsigned NBITS = 256;
+            std::bitset<NBITS> bs;              // optimization for the first NBITS characters  
+            std::set<char_range> cs;            // for higher characters
             bool inverted = false;
 
             void add_range(char32_t lo, char32_t hi)
             {
+                // Use the bitset for low characters
+                while ( lo < NBITS && lo <= hi )
+                    bs.set(lo++);
+
                 if ( lo > hi )
                     return;
 
+                // Use the range set for higher characters
                 char_range cr(lo, hi);
 
                 // Merge and remove overlapping ranges
@@ -103,7 +112,7 @@ namespace peg
                     cs.erase(iter);
                 }
  
-                // Insert aggregated range
+                // Insert aggregate range
                 cs.insert(cr);
             }
 
@@ -111,7 +120,7 @@ namespace peg
 
             char_class(const std::string &s) 
             {
-                // Convert s to 32-bit string
+                // Convert s to a 32-bit string
                 struct cvt : std::codecvt<char32_t, char, std::mbstate_t> { };
                 std::wstring_convert<cvt, char32_t> converter;
                 std::u32string us = converter.from_bytes(s);
@@ -121,19 +130,19 @@ namespace peg
                 if ( p == q )
                     return;
 
-                if ( p[0] == '^' )
+                if ( p[0] == '^' )                      // inverted class
                 {
                     inverted = true;
                     p++;
                 }
 
                 while ( p < q )
-                    if ( p + 2 < q && p[1] == '-' )
+                    if ( p + 2 < q && p[1] == '-' )     // character range
                     {
                         add_range(p[0], p[2]);
                         p += 3;
                     }
-                    else
+                    else                                // single character
                     {
                         add_range(p[0], p[0]);
                         p++;
@@ -142,7 +151,8 @@ namespace peg
 
             bool find(char32_t value) const
             { 
-                bool found = cs.count(char_range(value, value));
+                // Lookup low values in the bitset, higher values in the range set.
+                bool found = value < NBITS ? bs[value] : cs.count(char_range(value, value));
                 return inverted ? !found : found; 
             }
         };
