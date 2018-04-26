@@ -940,8 +940,8 @@ namespace peg
 #define peg_debug(rule)     rule.name = #rule
 #endif
 
-#define _(code...)          (peg::Do([&]{ code }))  
-#define _if(cond...)        (peg::Pred([&](bool &__r){ __r = (cond); }))  
-#define _pr(code...)        (peg::Pred([&](bool &__r){ __r = [&]()->bool{ code }(); }))  
+#define   _(...)            (peg::Do([&]{ __VA_ARGS__ }))  
+#define if_(...)            (peg::Pred([&](bool &__r){ __r = (__VA_ARGS__); }))  
+#define pr_(...)            (peg::Pred([&](bool &__r){ __r = [&]()->bool{ __VA_ARGS__ }(); }))  
 
 #endif // PEG_H_INCLUDED
