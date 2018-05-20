@@ -4,6 +4,8 @@
 #include <string>
 #include <map>
 
+#include <math.h>
+
 #define PEG_USE_SHARED_PTR
 // #define PEG_DEBUG     // Uncomment this for checking the grammar
 
