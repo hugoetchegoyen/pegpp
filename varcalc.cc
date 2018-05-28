@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 
 #ifdef PEG_DEBUG
 
-    // Rules to be debugged while checkings
+    // Rules to be debugged while checking
     peg_debug(PRINT);
     peg_debug(IDENT);
     peg_debug(EQUALS);

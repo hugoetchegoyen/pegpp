@@ -760,11 +760,11 @@ namespace peg
 
         // Postfix operators
         Expr operator--(int) const { return ExprPtr(new CapExpr(exp)); }                            // text capture
-        Expr operator()(const Expr &r) { return ExprPtr(new AttExpr(exp, r.exp)); }                 // attach expression
-        Expr operator()(const std::string &s) { return operator()(Expr(s)); }                       // attach string
-        Expr operator()(char32_t c) { return operator()(Expr(c)); }                                 // attach single char
-        Expr operator()(std::function<void()> f) { return operator()(Expr(f)); }                    // attach action
-        Expr operator()(std::function<void(bool &)> f) { return operator()(Expr(f)); }              // attach semantic predicate
+        Expr operator()(const Expr &r) const { return ExprPtr(new AttExpr(exp, r.exp)); }           // attach expression
+        Expr operator()(const std::string &s) const { return operator()(Expr(s)); }                 // attach string
+        Expr operator()(char32_t c) const { return operator()(Expr(c)); }                           // attach single char
+        Expr operator()(std::function<void()> f) const { return operator()(Expr(f)); }              // attach action
+        Expr operator()(std::function<void(bool &)> f) const { return operator()(Expr(f)); }        // attach semantic predicate
 
         // Binary operators 
         Expr operator>>(const Expr &r) const { return ExprPtr(new SeqExpr(exp, r.exp)); }           // sequence
