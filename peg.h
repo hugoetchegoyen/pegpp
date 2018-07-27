@@ -934,7 +934,7 @@ namespace peg
         template <typename T> Rule &operator=(T t) { return *this = Expr(t); }
     };
 
-}; 
+} 
 
 #ifdef PEG_DEBUG
 #define peg_debug(rule)     rule.name = #rule

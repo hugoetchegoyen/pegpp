@@ -3,14 +3,19 @@ Examples using the pegplusplus library.
 Username
 --------
 
-This is a simple example showing that LEG parsers can be easily translated to
-pegplusplus. The LEG version (username.leg) was taken from the PEG/LEG distribution.
+This is a simple example using the facilities defined in peg.h.
+
+It shows how LEG parsers can be easily translated to pegplusplus. 
+The LEG version (username.leg) was taken from the PEG/LEG distribution.
 
 The parser replaces all occurrences of the string "username" by the current user's 
 login name.
 
 Varcalc
 -------
+
+This is a more complex example that encapsulates the parser in a class, using the
+Parser class defined in pegparser.h.
 
 Varcalc is a calculator with the following features:
 

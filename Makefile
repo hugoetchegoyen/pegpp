@@ -1,11 +1,18 @@
-CXXFLAGS = -std=c++11 -Wall -O3
+CXXFLAGS = -std=c++17 -Wall -O3
 LINK.o = $(CXX)
 
-all: varcalc username
+all = varcalc username
 
-varcalc: varcalc.o
-varcalc.o: varcalc.cc peg.h
+.PHONY: all clean
 
-username: username.o
-username.o: username.cc peg.h
+all: $(all)
+
+clean:
+	rm $(all) *.o
+
+pegparser.h: peg.h
+	touch pegparser.h
+
+varcalc.o: pegparser.h
+username.o: peg.h
 
