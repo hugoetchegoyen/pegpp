@@ -8,94 +8,87 @@
 namespace peg
 {
 
+    namespace details
+    {
+
+        // Basic parser with starting rule and matcher
+        class __parser
+        {
+        protected:
+
+            Rule &__start;
+            matcher __m;
+
+            // Construct with starting rule and input stream
+            __parser(Rule &r, std::istream &in) : __start(r), __m(in) { }
+
+        public:
+
+            // Parsing methods
+            bool parse() { return __start.parse(__m); }
+            void accept() { __m.accept(); }
+            void clear() { __m.clear(); }
+            std::string text() const { return __m.text(); }
+
+    #ifdef PEG_DEBUG
+            // Grammar checking
+            void check() const { __start.check(); }
+    #endif
+        };
+
+    }
+
     // Generic parser with variant type value stack. 
     template <typename ...T>
-    class Parser
+    class Parser : public details::__parser
     {
         using variant_type = std::variant<std::monostate, T...>;
         using stack_type = value_stack<variant_type>;
 
-        Rule &start;
-        matcher m;
-        stack_type values;
+        stack_type __values;
 
     public:
 
         // Construct with starting rule and input stream (default std::cin)
-        Parser(Rule &r, std::istream &in = std::cin) : start(r), m(in), values(m) { }
-
-        // Parsing methods
-        bool parse() { return start.parse(m); }
-        void accept() { m.accept(); }
-        void clear() { m.clear(); }
-        std::string text() const { return m.text(); }
+        Parser(Rule &r, std::istream &in = std::cin) : __parser(r, in), __values(__m) { }
 
         // Reference to the value stored in a value stack slot. Throws std::bad_variant_access
         // if the slot does not currently hold a value of the required type.
-        template <typename U> U &val(size_t idx) { return std::get<U>(values[idx]); }
+        template <typename U> U &val(size_t idx) { return std::get<U>(__values[idx]); }
 
         // Reference to a value stack slot
-        variant_type &val(size_t idx) { return values[idx]; }
-
-#ifdef PEG_DEBUG
-        void check() const { start.check(); }
-#endif
+        variant_type &val(size_t idx) { return __values[idx]; }
     };
 
     // Specialization for single type value stack. 
     template <typename T>
-    class Parser<T>
+    class Parser<T> : public details::__parser
     {
         using stack_type = value_stack<T>;
 
-        Rule &start;
-        matcher m;
-        stack_type values;
+        stack_type __values;
 
     public:
 
         // Construct with starting rule and input stream (default std::cin)
-        Parser(Rule &r, std::istream &in = std::cin) : start(r), m(in), values(m) { }
-
-        // Parsing methods
-        bool parse() { return start.parse(m); }
-        void accept() { m.accept(); }
-        void clear() { m.clear(); }
-        std::string text() const { return m.text(); }
+        Parser(Rule &r, std::istream &in = std::cin) : __parser(r, in), __values(__m) { }
 
         // Reference to a value stack slot with explicit type qualification.
         // Provided for compatibility with code written for the generic case.
-        template <typename U> U &val(size_t idx) { return values[idx]; }
+        template <typename U> U &val(size_t idx) { return __values[idx]; }
 
         // Reference to a value stack slot
-        T &val(size_t idx) { return values[idx]; }
-
-#ifdef PEG_DEBUG
-        void check() const { start.check(); }
-#endif
+        T &val(size_t idx) { return __values[idx]; }
     };
 
     // Specialization for no value stack
     template <>
-    class Parser<>
+    class Parser<> : public details::__parser
     {
-        Rule &start;
-        matcher m;
-
     public:
 
         // Construct with starting rule and input stream (default std::cin)
-        Parser(Rule &r, std::istream &in = std::cin) : start(r), m(in) { }
-
-        // Parsing methods
-        bool parse() { return start.parse(m); }
-        void accept() { m.accept(); }
-        void clear() { m.clear(); }
-        std::string text() const { return m.text(); }
-
-#ifdef PEG_DEBUG
-        void check() const { start.check(); }
-#endif
+        Parser(Rule &r, std::istream &in = std::cin) : __parser(r, in) { }
     };
 
 }
