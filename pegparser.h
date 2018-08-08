@@ -8,87 +8,69 @@
 namespace peg
 {
 
-    namespace details
+     // Basic parser without value stack
+    class Parser
     {
+        Rule &__start;
 
-        // Basic parser with starting rule and matcher
-        class __parser
-        {
-        protected:
+    protected:
 
-            Rule &__start;
-            matcher __m;
+        matcher __m;
 
-            // Construct with starting rule and input stream
-            __parser(Rule &r, std::istream &in) : __start(r), __m(in) { }
-
-        public:
-
-            // Parsing methods
-            bool parse() { return __start.parse(__m); }
-            void accept() { __m.accept(); }
-            void clear() { __m.clear(); }
-            std::string text() const { return __m.text(); }
-
-    #ifdef PEG_DEBUG
-            // Grammar checking
-            void check() const { __start.check(); }
-    #endif
-        };
-
-    }
-
-    // Generic parser with variant type value stack. 
-    template <typename ...T>
-    class Parser : public details::__parser
-    {
-        using variant_type = std::variant<std::monostate, T...>;
-        using stack_type = value_stack<variant_type>;
-
-        stack_type __values;
+        // Construct with starting rule and input stream
+        Parser(Rule &r, std::istream &in = std::cin) : __start(r), __m(in) { }
 
     public:
 
-        // Construct with starting rule and input stream (default std::cin)
-        Parser(Rule &r, std::istream &in = std::cin) : __parser(r, in), __values(__m) { }
+        // Parsing methods
+        bool parse() { return __start.parse(__m); }
+        void accept() { __m.accept(); }
+        void clear() { __m.clear(); }
+        std::string text() const { return __m.text(); }
+
+#ifdef PEG_DEBUG
+        // Grammar check
+        void check() const { __start.check(); }
+#endif
+    };
+
+    // Parser with variant type value stack. 
+    template <typename ...T>
+    class VParser : public Parser
+    {
+        using element_type = std::variant<std::monostate, T...>;
+        value_stack<element_type> __values;
+
+    public:
+
+        // Construct with starting rule and input stream
+        VParser(Rule &r, std::istream &in = std::cin) : Parser(r, in), __values(__m) { }
+
+        // Reference to a value stack slot
+        element_type &val(std::size_t idx) { return __values[idx]; }
 
         // Reference to the value stored in a value stack slot. Throws std::bad_variant_access
         // if the slot does not currently hold a value of the required type.
-        template <typename U> U &val(size_t idx) { return std::get<U>(__values[idx]); }
-
-        // Reference to a value stack slot
-        variant_type &val(size_t idx) { return __values[idx]; }
+        template <typename U> U &val(std::size_t idx) { return std::get<U>(__values[idx]); }
     };
 
-    // Specialization for single type value stack. 
+    // Parser with single type value stack. 
     template <typename T>
-    class Parser<T> : public details::__parser
+    class TParser : public Parser
     {
-        using stack_type = value_stack<T>;
-
-        stack_type __values;
+        value_stack<T> __values;
 
     public:
 
-        // Construct with starting rule and input stream (default std::cin)
-        Parser(Rule &r, std::istream &in = std::cin) : __parser(r, in), __values(__m) { }
+        // Construct with starting rule and input stream
+        TParser(Rule &r, std::istream &in = std::cin) : Parser(r, in), __values(__m) { }
+
+        // Reference to a value stack slot
+        T &val(std::size_t idx) { return __values[idx]; }
 
         // Reference to a value stack slot with explicit type qualification.
-        // Provided for compatibility with code written for the generic case.
-        template <typename U> U &val(size_t idx) { return __values[idx]; }
-
-        // Reference to a value stack slot
-        T &val(size_t idx) { return __values[idx]; }
-    };
-
-    // Specialization for no value stack
-    template <>
-    class Parser<> : public details::__parser
-    {
-    public:
-
-        // Construct with starting rule and input stream (default std::cin)
-        Parser(Rule &r, std::istream &in = std::cin) : __parser(r, in) { }
+        // Provided for compatibility with the variant case.
+        template <typename U> U &val(std::size_t idx) { return __values[idx]; }
     };
 
 }
