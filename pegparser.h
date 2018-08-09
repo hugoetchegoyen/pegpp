@@ -17,10 +17,10 @@ namespace peg
 
         matcher __m;
 
+    public:
+
         // Construct with starting rule and input stream
         Parser(Rule &r, std::istream &in = std::cin) : __start(r), __m(in) { }
-
-    public:
 
         // Parsing methods
         bool parse() { return __start.parse(__m); }
