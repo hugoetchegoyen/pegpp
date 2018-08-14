@@ -25,7 +25,7 @@ Varcalc
 -------
 
 A more complex example. It encapsulates the parser in a class, using the
-Parser class defined in pegparser.h.
+VParser class defined in pegparser.h.
 
 Varcalc is a calculator with the following features:
 

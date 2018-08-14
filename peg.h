@@ -937,11 +937,14 @@ namespace peg
 } 
 
 #ifdef PEG_DEBUG
+// Set a rule's name for debugging
 #define peg_debug(rule)     rule.name = #rule
 #endif
 
+// Semantic actions and predicates
 #define   _(...)            (peg::Do([&]{ __VA_ARGS__ }))  
-#define if_(...)            (peg::Pred([&](bool &__r){ __r = (__VA_ARGS__); }))  
+#define pa_(...)            (peg::Pred([&](bool &){ __VA_ARGS__ }))  
 #define pr_(...)            (peg::Pred([&](bool &__r){ __r = [&]()->bool{ __VA_ARGS__ }(); }))  
+#define if_(...)            (peg::Pred([&](bool &__r){ __r = (__VA_ARGS__); }))  
 
 #endif // PEG_H_INCLUDED
