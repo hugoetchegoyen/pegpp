@@ -90,3 +90,28 @@ This is the output:
     line 3: ERROR: hello!       (standard error)
     0                           (standard output)
     0.707107                    (standard output)
+
+Pal
+---
+
+An example demonstrating the use of semantic predicates and parsing-time actions.
+This parser splits the input stream into palindromes and prints them one per line. 
+A palindrome is any symmetric string of length 1 or more.
+
+If there are no repeated characters the parser outputs the longest possible
+palindromes. With repeated characters the behaviour is more erratic: it outputs 
+palindromes, but not always the longest ones.
+
+Some input -> output samples:
+
+    abcba -> abcba
+
+    aaaaa -> aa
+             aa
+             a
+
+    aaaa  -> aaaa
+
+    aaa   -> aa
+             a
+
