@@ -517,7 +517,12 @@ namespace peg
                 return false;
             }
 #ifdef PEG_DEBUG
-            void visit(unsigned &cons) const { exp->visit(cons); }
+            void visit(unsigned &cons) const 
+            { 
+                unsigned in = cons; 
+                exp->visit(cons); 
+                cons = in; 
+            }
 #endif
         };
 
@@ -540,7 +545,12 @@ namespace peg
                 return true;
             }
 #ifdef PEG_DEBUG
-            void visit(unsigned &cons) const { exp->visit(cons); }
+            void visit(unsigned &cons) const 
+            { 
+                unsigned in = cons; 
+                exp->visit(cons); 
+                cons = in; 
+            }
 #endif
         };
 

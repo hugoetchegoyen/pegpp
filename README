@@ -7,7 +7,7 @@ with embedded actions in C++ without intermediate code generation.
 Requirements
 ------------
 
-C++11 for the basic library (peg.h) and C++17 for the optional Parser class 
+C++11 for the basic library (peg.h) and C++17 for the optional parser classes 
 (pegparser.h).
 
 Username
@@ -72,7 +72,7 @@ White space, empty lines and comments are ignored.
 Invalid statements are reported as errors and ignored. 
 Valid statements are executed.
 
-Let's assume the following input:
+Assume the following input:
 
     a = b = 23 + c
     print 2 * a
@@ -100,7 +100,7 @@ A palindrome is any symmetric string of length 1 or more.
 
 If there are no repeated characters the parser outputs the longest possible
 palindromes. With repeated characters the behaviour is more erratic: it outputs 
-palindromes, but not always the longest ones.
+palindromes, but not necessarily the longest ones.
 
 Some input -> output samples:
 
