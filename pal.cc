@@ -1,29 +1,4 @@
-/*
-
-An example demonstrating the use of semantic predicates and parsing-time actions.
-This parser splits the input stream into palindromes and prints them one per line. 
-A palindrome is defined as a symmetric string of length 1 or more.
-
-If there are no repeated characters the parser outputs the longest possible
-palindromes. With repeated characters the behaviour is more erratic: it outputs 
-palindromes, but not always the longest ones.
-
-Some input -> output samples:
-
-    abcba -> abcba
-
-    aaaaa -> aa
-             aa
-             a
-
-    aaaa  -> aaaa
-
-    aaa   -> aa
-             a
-
-The value stack is used only during parsing to check symmetry.
-
-*/
+// A simple palindrome recognizer
 
 #include <stdio.h>
 #include <iostream>
