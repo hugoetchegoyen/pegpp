@@ -1,6 +1,6 @@
 // A simple palindrome recognizer
 
-#include <stdio.h>
+#include <string>
 #include <iostream>
 
 #include "peg.h"
@@ -16,12 +16,10 @@ int main()
 
     start   = pal--                                   _( cout << m.text() << endl; )
             ;
-
     pal     = chr >> pal >> chr                     if_( val[0] == val[2] ) 
             | chr >> chr                            if_( val[0] == val[1] ) 
             | chr
             ;
-
     chr     = Any()--                               pa_( val[0] = m.text(); )  
             ;
 

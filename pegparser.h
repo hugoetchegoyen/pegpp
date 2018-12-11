@@ -34,6 +34,12 @@ namespace peg
 #endif
     };
 
+#ifdef PEGPARSER_USE_MAP
+    template <typename T> using stack_type = value_stack<T>;
+#else
+    template <typename T> using stack_type = value_map<T>;
+#endif
+
     // Parser with variant type value stack. 
     template <typename ...T>
     class VParser : public Parser
