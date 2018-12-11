@@ -6,8 +6,9 @@
 
 #include <math.h>
 
-#define PEG_USE_SHARED_PTR
-// #define PEG_DEBUG     // Uncomment this for checking the grammar
+#define PEG_USE_SHARED_PTR      // Use smart pointers
+#define PEGPARSER_USE_MAP       // Use value_map for the value stack
+// #define PEG_DEBUG            // Uncomment for checking the grammar
 
 #include "pegparser.h"
 

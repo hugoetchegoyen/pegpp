@@ -45,7 +45,7 @@ namespace peg
     class VParser : public Parser
     {
         using element_type = std::variant<std::monostate, T...>;
-        value_stack<element_type> __values;
+        stack_type<element_type> __values;
 
     public:
 
@@ -64,7 +64,7 @@ namespace peg
     template <typename T>
     class TParser : public Parser
     {
-        value_stack<T> __values;
+        stack_type<T> __values;
 
     public:
 
