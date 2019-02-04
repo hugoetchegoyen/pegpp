@@ -1,117 +1,124 @@
 The pegpp library
 -----------------
 
-Pegpp is a header-only library that allows building PEG grammars and parsers
-with embedded actions in C++ without intermediate code generation. 
+Pegpp is a header-only library that allows building PEG grammars with embedded actions
+in C++ and parse them directly, without intermediate code generation.
+
+The grammars are expressed in an EBNF-like syntax inspired by tools like the PEG and LEG
+compilers by Ian Piumarta.
 
 Requirements
 ------------
 
-C++11 for the basic library (peg.h) and C++17 for the optional parser classes 
-(pegparser.h).
+C++11 for the basic library (peg.h) and C++17 for the optional parser classes (pegparser.h).
 
-Username
+Documentation
+-------------
+
+See pegpp.pdf.
+
+Examples
 --------
 
-A simple example using the facilities defined in peg.h.
+Username:
 
-It shows how LEG parsers can be easily translated to pegplusplus. 
-The LEG version (username.leg) was taken from the PEG/LEG distribution.
+    A simple example using the facilities defined in peg.h.
 
-The parser replaces all occurrences of the string "username" by the current user's 
-login name.
+    It shows how LEG parsers can be easily translated to pegplusplus. 
+    The LEG version (username.leg) was taken from the PEG/LEG distribution.
 
-Varcalc
--------
+    The parser replaces all occurrences of the string "username" by the current user's 
+    login name.
 
-A more complex example. It encapsulates the parser in a class, using the
-VParser class defined in pegparser.h.
 
-Varcalc is a calculator with the following features:
+Pal:
 
-    Values are doubles. Valid input formats: 
+    An example demonstrating the use of semantic predicates and parsing-time actions.
+    This parser splits the input stream into palindromes and prints them one per line. 
+    A palindrome is any symmetric string of length 1 or more.
 
-        17
-        2.
-        2.33
-        .28
-        3.21e3
-        22e-5
+    If there are no repeated characters the parser outputs the longest possible
+    palindromes. With repeated characters the behaviour is more erratic: it outputs 
+    palindromes, but not necessarily the longest ones.
 
-    Operations supported:
+    Some input -> output samples:
 
-        addition/substraction
-        multiplication/division
-        exponentiation
-        grouping (parentheses)
-        variable assignment
-        printing (print command)
+        abcba -> abcba
 
-    Named variables: 
+        aaaaa -> aa
+                 aa
+                 a
 
-        variable names have the format of C identifiers
-        assignment is an expression (assignments can be cascaded)
+        aaaa  -> aaaa
 
-    Operators from highest to lowest precedence and their associativity:
+        aaa   -> aa
+                 a
 
-        ^       exponentiation      left
-        + -     unary plus/minus    right
-        * /     multiply/divide     left
-        + -     add/substract       left
-        =       assignment          right
+Varcalc:
 
-Varcalc reads statements. Newline or semi-colon end a statement.
+    A more complex example. It encapsulates the parser in a class, using the
+    VParser class defined in pegparser.h.
 
-Statements can be:
+    Varcalc is a calculator with the following features:
 
-    <expression>
-    print <expression>
+        Values are doubles. Valid input formats are as follows: 
 
-Any text from // to the end of the line is a comment.
-White space, empty lines and comments are ignored. 
-Invalid statements are reported as errors and ignored. 
-Valid statements are executed.
+            17
+            2.
+            2.33
+            .28
+            3.21e3
+            22e-5
 
-Assume the following input:
+        Operations supported:
 
-    a = b = 23 + c
-    print 2 * a
-    hello!
-    print c
-    print 2^(-1/2) 
+            addition/substraction
+            multiplication/division
+            exponentiation
+            grouping (parentheses)
+            variable assignment
+            printing (print command)
 
-Variable c is being used without a previous assignment. This is valid, the variable is
-automatically initialized with value 0 and a warning is printed on standard error.
+        Named variables: 
 
-This is the output:
+            Variable names have the format of C identifiers.
+            Assignment is an expression (assignments can be cascaded).
 
-    line 1: defining c = 0      (standard error)
-    46                          (standard output)
-    line 3: ERROR: hello!       (standard error)
-    0                           (standard output)
-    0.707107                    (standard output)
+        Operators from highest to lowest precedence and their associativity:
 
-Pal
----
+            ^       exponentiation      left
+            + -     unary plus/minus    right
+            * /     multiply/divide     left
+            + -     add/substract       left
+            =       assignment          right
 
-An example demonstrating the use of semantic predicates and parsing-time actions.
-This parser splits the input stream into palindromes and prints them one per line. 
-A palindrome is any symmetric string of length 1 or more.
+    Varcalc reads statements. Newline or semi-colon end a statement.
 
-If there are no repeated characters the parser outputs the longest possible
-palindromes. With repeated characters the behaviour is more erratic: it outputs 
-palindromes, but not necessarily the longest ones.
+    Statements can be:
 
-Some input -> output samples:
+        <expression>
+        print <expression>
 
-    abcba -> abcba
+    Any text from // to the end of the line is a comment.
+    White space, empty lines and comments are ignored. 
+    Invalid statements are reported as errors and ignored. 
+    Valid statements are executed.
 
-    aaaaa -> aa
-             aa
-             a
+    Assume the following input:
 
-    aaaa  -> aaaa
+        a = b = 23 + c
+        print 2 * a
+        hello!
+        print c
+        print 2^(-1/2) 
 
-    aaa   -> aa
-             a
+    Variable c is being used without a previous assignment. This is valid, the variable is
+    automatically initialized to 0 and a warning is printed on standard error.
 
+    This is the output:
+
+        line 1: defining c = 0      (standard error)
+        46                          (standard output)
+        line 3: ERROR: hello!       (standard error)
+        0                           (standard output)
+        0.707107                    (standard output)
