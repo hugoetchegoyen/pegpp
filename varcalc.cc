@@ -15,7 +15,7 @@
 using namespace std;
 using namespace peg;
 
-class calculator : public VParser<double, string>
+class calculator : public Parser<double, string>
 {
     map<string, double> var;
     unsigned line = 1;
@@ -26,7 +26,7 @@ class calculator : public VParser<double, string>
 
 public:
 
-    calculator(istream &in = cin) : VParser(calc, in)
+    calculator(istream &in = cin) : Parser(calc, in)
     {
         // Basic lexical definitions 
 

@@ -9,7 +9,7 @@ namespace peg
 {
 
      // Basic parser without value stack
-    class Parser
+    class BasicParser
     {
         Rule &__start;
 
@@ -20,7 +20,7 @@ namespace peg
     public:
 
         // Construct with starting rule and input stream
-        Parser(Rule &r, std::istream &in = std::cin) : __start(r), __m(in) { }
+        BasicParser(Rule &r, std::istream &in = std::cin) : __start(r), __m(in) { }
 
         // Parsing methods
         bool parse() { return __start.parse(__m); }
@@ -42,7 +42,7 @@ namespace peg
 
     // Parser with variant type value stack. 
     template <typename ...T>
-    class VParser : public Parser
+    class Parser : public BasicParser
     {
         using element_type = std::variant<std::monostate, T...>;
         stack_type<element_type> __values;
@@ -50,7 +50,7 @@ namespace peg
     public:
 
         // Construct with starting rule and input stream
-        VParser(Rule &r, std::istream &in = std::cin) : Parser(r, in), __values(__m) { }
+        Parser(Rule &r, std::istream &in = std::cin) : BasicParser(r, in), __values(__m) { }
 
         // Reference to a value stack slot
         element_type &val(std::size_t idx) { return __values[idx]; }
@@ -62,14 +62,14 @@ namespace peg
 
     // Parser with single type value stack. 
     template <typename T>
-    class TParser : public Parser
+    class Parser<T> : public BasicParser
     {
         stack_type<T> __values;
 
     public:
 
         // Construct with starting rule and input stream
-        TParser(Rule &r, std::istream &in = std::cin) : Parser(r, in), __values(__m) { }
+        Parser(Rule &r, std::istream &in = std::cin) : BasicParser(r, in), __values(__m) { }
 
         // Reference to a value stack slot
         T &val(std::size_t idx) { return __values[idx]; }
@@ -77,6 +77,16 @@ namespace peg
         // Reference to a value stack slot with explicit type qualification.
         // Provided for compatibility with the variant case.
         template <typename U> U &val(std::size_t idx) { return __values[idx]; }
+    };
+
+    // Parser with no value stack. 
+    template <>
+    class Parser<> : public BasicParser
+    {
+    public:
+
+        // Construct with starting rule and input stream
+        Parser(Rule &r, std::istream &in = std::cin) : BasicParser(r, in) { }
     };
 
 }
