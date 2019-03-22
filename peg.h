@@ -770,19 +770,19 @@ namespace peg
 
         // Postfix operators
         Expr operator--(int) const { return ExprPtr(new CapExpr(exp)); }                            // text capture
-        template <typename T> Expr operator()(const T &r) const                                     // attachment
+        template <typename T> Expr operator()(const T &t) const                                     // attachment
         { 
-            return ExprPtr(new AttExpr(exp, Expr(r).exp)); 
+            return ExprPtr(new AttExpr(exp, Expr(t).exp)); 
         }
 
         // Binary operators
-        template <typename T, typename U> friend Expr operator>>(const T &r, const U &s)            // sequence
+        template <typename T, typename U> friend Expr operator>>(const T &t, const U &u)            // sequence
         { 
-            return ExprPtr(new SeqExpr(Expr(r).exp, Expr(s).exp)); 
+            return ExprPtr(new SeqExpr(Expr(t).exp, Expr(u).exp)); 
         } 
-        template <typename T, typename U> friend Expr operator|(const T &r, const U &s)             // ordered choice
+        template <typename T, typename U> friend Expr operator|(const T &t, const U &u)             // ordered choice
         { 
-            return ExprPtr(new AltExpr(Expr(r).exp, Expr(s).exp)); 
+            return ExprPtr(new AltExpr(Expr(t).exp, Expr(u).exp)); 
         } 
  
     };
@@ -810,12 +810,6 @@ namespace peg
         // The root of this rule's expression tree
         ExprPtr root = nullptr;
 
-#ifdef PEG_DEBUG
-        // Variables for rule visitor
-        bool visiting = false, visited = false; 
-        unsigned my_cons;
-#endif
-
         // A rule expression is a structure that holds a reference to the rule. 
         // This indirection allows rules to refer to other rules before they are defined.
         struct RuleExpr : Expression
@@ -830,6 +824,10 @@ namespace peg
         };
 
 #ifdef PEG_DEBUG
+        // Variables for rule visitor
+        bool visiting = false, visited = false; 
+        unsigned my_cons;
+
         // Visit the paths from this rule
         void visit(unsigned &cons)  
         {
@@ -866,7 +864,14 @@ namespace peg
 
     public:
 
-        // Exceptions thrown
+        // Only default constructor. No coying.
+        Rule() : Expr(ExprPtr(new RuleExpr(*this))) { }
+        Rule(const Rule &) = delete;
+
+        // Assignment. Note r = r is not trivial, it makes r left-recursive.
+        template <typename T> Rule &operator=(const T &t) { root = Expr(t).exp; return *this; }
+
+        // Exceptions.
         class bad_rule : public std::exception
         {
             const char *str;
@@ -877,7 +882,7 @@ namespace peg
             const char *what() const noexcept { return str; }
         };
 
-        // Adjust the base of value stack indices and parse the root.
+        // Parse the root adjusting the base of value stack indices.
         bool parse(matcher &m) const 
         { 
             if ( !root )
@@ -900,22 +905,10 @@ namespace peg
             unsigned cons = 0;
             visit(cons);
             if ( name )
-                std::cerr << name << ": check OK" << std::endl;
-            else
-                std::cerr << "check OK" << std::endl;
+                std::cerr << name << ": ";
+            std::cerr << "check OK\n";
         }
 #endif
-
-        // Only default construction allowed. No coying.
-        Rule() : Expr(ExprPtr(new RuleExpr(*this))) { }
-        Rule(const Rule &r) = delete;
-
-        // Assignment.
-        // Note: 
-        //      Rule r;
-        //      r = r;
-        // This is non-trivial, it makes r left-recursive.
-        template <typename T> Rule &operator=(const T &t) { root = Expr(t).exp; return *this; }
     };
 
 } 
