@@ -770,37 +770,21 @@ namespace peg
 
         // Postfix operators
         Expr operator--(int) const { return ExprPtr(new CapExpr(exp)); }                            // text capture
-        Expr operator()(const Expr &r) const { return ExprPtr(new AttExpr(exp, r.exp)); }           // attach expression
-        Expr operator()(const std::string &s) const { return operator()(Expr(s)); }                 // attach string
-        Expr operator()(char32_t c) const { return operator()(Expr(c)); }                           // attach single char
-        Expr operator()(std::function<void()> f) const { return operator()(Expr(f)); }              // attach action
-        Expr operator()(std::function<void(bool &)> f) const { return operator()(Expr(f)); }        // attach semantic predicate
+        template <typename T> Expr operator()(const T &r) const                                     // attachment
+        { 
+            return ExprPtr(new AttExpr(exp, Expr(r).exp)); 
+        }
 
-        // Binary operators 
-        Expr operator>>(const Expr &r) const { return ExprPtr(new SeqExpr(exp, r.exp)); }           // sequence
-        Expr operator|(const Expr &r) const { return ExprPtr(new AltExpr(exp, r.exp)); }            // ordered choice
-
-        // Overloaded binary operators
-        friend Expr operator>>(const Expr &r, const std::string &s) { return r >> Expr(s); }        // string overloads
-        friend Expr operator>>(const std::string &s, const Expr &r) { return Expr(s) >> r; }
-        friend Expr operator|(const Expr &r, const std::string &s) { return r | Expr(s); } 
-        friend Expr operator|(const std::string &s, const Expr &r) { return Expr(s) | r; } 
-
-        friend Expr operator>>(const Expr &r, char32_t c) { return r >> Expr(c); }                  // single char overloads
-        friend Expr operator>>(char32_t c, const Expr &r) { return Expr(c) >> r; }
-        friend Expr operator|(const Expr &r, char32_t c) { return r | Expr(c); }
-        friend Expr operator|(char32_t c, const Expr &r) { return Expr(c) | r; }
-
-        friend Expr operator>>(const Expr &r, std::function<void()> f) { return r >> Expr(f); }     // action overloads
-        friend Expr operator>>(std::function<void()> f, const Expr &r) { return Expr(f) >> r; }
-        friend Expr operator|(const Expr &r, std::function<void()> f) { return r | Expr(f); }
-        friend Expr operator|(std::function<void()> f, const Expr &r) { return Expr(f) | r; }
-
-        friend Expr operator>>(const Expr &r, std::function<void(bool &)> f) { return r >> Expr(f); }   // semantic predicate
-        friend Expr operator>>(std::function<void(bool &)> f, const Expr &r) { return Expr(f) >> r; }   // overloads
-        friend Expr operator|(const Expr &r, std::function<void(bool &)> f) { return r | Expr(f); }
-        friend Expr operator|(std::function<void(bool &)> f, const Expr &r) { return Expr(f) | r; }
-
+        // Binary operators
+        template <typename T, typename U> friend Expr operator>>(const T &r, const U &s)            // sequence
+        { 
+            return ExprPtr(new SeqExpr(Expr(r).exp, Expr(s).exp)); 
+        } 
+        template <typename T, typename U> friend Expr operator|(const T &r, const U &s)             // ordered choice
+        { 
+            return ExprPtr(new AltExpr(Expr(r).exp, Expr(s).exp)); 
+        } 
+ 
     };
 
     // Lexical primitives
@@ -926,22 +910,12 @@ namespace peg
         Rule() : Expr(ExprPtr(new RuleExpr(*this))) { }
         Rule(const Rule &r) = delete;
 
-        // An expression assigns the root.
-        Rule &operator=(const Expr &r) { root = r.exp; return *this; }
-
-        // Copy assignment takes the source rule's expression.
+        // Assignment.
+        // Note: 
         //      Rule r;
         //      r = r;
         // This is non-trivial, it makes r left-recursive.
-        Rule &operator=(const Rule &r) { return *this = Expr(r); }
-
-        // Overloaded assignments for:
-        //      string
-        //      const char *
-        //      char
-        //      action
-        //      semantic predicate
-        template <typename T> Rule &operator=(T t) { return *this = Expr(t); }
+        template <typename T> Rule &operator=(const T &t) { root = Expr(t).exp; return *this; }
     };
 
 } 
