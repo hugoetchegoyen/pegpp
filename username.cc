@@ -18,11 +18,9 @@ int main()
     return 0;
 }
 
-Note: getlogin() replaced by cuserid().
-
 */
 
-#include <stdio.h>
+#include <unistd.h>
 #include <iostream>
 
 #include "peg.h"
@@ -30,16 +28,26 @@ Note: getlogin() replaced by cuserid().
 using namespace std;
 using namespace peg;
 
-int main()
+class parser : public Parser<>
 {
-    matcher m;
     Rule start;
 
-    start   = "username"_lit        _( cout << cuserid(NULL); )
-            | Any()--               _( cout << m.text(); )
-            ;
+public:
 
-    while ( start.parse(m) )
-        m.accept();
+    parser(istream &in = cin) : Parser(start, in)
+    {
+        start   = "username"_lit        _( cout << getlogin(); )
+                | Any()--               _( cout << text(); )
+                ;
+    }
+};
+
+int main()
+{
+    parser p;
+    while ( p.parse() )
+        p.accept();
 }
+
+
 

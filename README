@@ -4,13 +4,13 @@ The pegpp library
 Pegpp is a header-only library that allows building PEG grammars with embedded actions
 in C++ and parse them directly, without intermediate code generation.
 
-The grammars are expressed in an EBNF-like syntax inspired by tools like the PEG and LEG
-compilers by Ian Piumarta.
+The grammars are expressed in an EBNF-like syntax inspired by the PEG and LEG parser 
+compilers by Ian Piumarta. Value stack handling is inspired by YACC.
 
 Requirements
 ------------
 
-C++11 for the basic library (peg.h) and C++17 for the optional parser classes (pegparser.h).
+C++17. Tested with gcc 8.2.0 on Linux.
 
 Documentation
 -------------
@@ -22,14 +22,11 @@ Examples
 
 Username:
 
-    A simple example using the facilities defined in peg.h.
-
-    It shows how LEG parsers can be easily translated to pegplusplus. 
+    A simple example showing how LEG parsers can be easily translated to pegpp. 
     The LEG version (username.leg) was taken from the PEG/LEG distribution.
 
     The parser replaces all occurrences of the string "username" by the current user's 
     login name.
-
 
 Pal:
 
@@ -56,12 +53,9 @@ Pal:
 
 Varcalc:
 
-    A more complex example. It encapsulates the parser in a class, using the
-    Parser class defined in pegparser.h.
+    A more complex example. Varcalc is a floating-point calculator.
 
-    Varcalc is a calculator with the following features:
-
-        Values are doubles. Valid input formats are as follows: 
+        Values are doubles. Valid input formats: 
 
             17
             2.
@@ -70,7 +64,7 @@ Varcalc:
             3.21e3
             22e-5
 
-        Operations supported:
+        Supported operations:
 
             addition/substraction
             multiplication/division
@@ -112,7 +106,7 @@ Varcalc:
         print c
         print 2^(-1/2) 
 
-    Variable c is being used without a previous assignment. This is valid, the variable is
+    Variable c is being used without a previous assignment. The variable is
     automatically initialized to 0 and a warning is printed on standard error.
 
     This is the output:

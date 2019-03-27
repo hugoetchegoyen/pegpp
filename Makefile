@@ -10,10 +10,7 @@ all: $(all)
 clean:
 	rm $(all) *.o
 
-pegparser.h: peg.h
-	touch pegparser.h
-
-varcalc.o: pegparser.h
+varcalc.o: peg.h
 username.o: peg.h
 pal.o: peg.h
 
