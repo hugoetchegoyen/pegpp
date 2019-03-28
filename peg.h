@@ -381,9 +381,11 @@ namespace peg
 
     } // namespace peg::details
 
-    // This class is a wrapper of a polimorphic expression pointer, 
+    // This class wraps a polimorphic expression pointer, 
     class Expr
     {
+        using matcher = details::matcher;
+
         // Friends
         friend Expr Lit(char32_t c);
         friend Expr Lit(const std::string &s);
@@ -391,10 +393,7 @@ namespace peg
         friend Expr Any();
         friend Expr Do(std::function<void()> f);
         friend Expr Pred(std::function<void(bool &)> f);
-
         friend class Rule;
-
-        using matcher = details::matcher;
 
         // Syntax tree structures
         struct Expression 
@@ -702,47 +701,49 @@ namespace peg
         Expr(const Expr &r) = default;
         Expr &operator=(const Expr &r) = default;
 
-        Expr(ExprPtr e) : exp(e) { }                                                                // from expression pointer
-        Expr(const std::string &s) : exp(ExprPtr(new StrExpr(s))) { }                               // from string
-        Expr(char32_t c) : exp(ExprPtr(new ChrExpr(c))) { }                                         // from single char
-        Expr(std::function<void()> f) : exp(ExprPtr(new DoExpr(f))) { }                             // from action
-        Expr(std::function<void(bool &)> f) : exp(ExprPtr(new PredExpr(f))) { }                     // from semantic predicate
+        Expr(const Expression *e) : exp(e) { }                                                      // from raw expression pointer
+        operator ExprPtr() { return exp; }                                                          // to expression pointer
+
+        Expr(const std::string &s) : exp(new StrExpr(s)) { }                                        // from string
+        Expr(char32_t c) : exp(new ChrExpr(c)) { }                                                  // from single char
+        Expr(std::function<void()> f) : exp(new DoExpr(f)) { }                                      // from action
+        Expr(std::function<void(bool &)> f) : exp(new PredExpr(f)) { }                              // from semantic predicate
 
     public:
 
         // Prefix operators
-        Expr operator*() const { return ExprPtr(new ZomExpr(exp)); }                                // zero or more times
-        Expr operator+() const { return ExprPtr(new OomExpr(exp)); }                                // one or more times
-        Expr operator~() const { return ExprPtr(new OptExpr(exp)); }                                // optional
-        Expr operator&() const { return ExprPtr(new AndExpr(exp)); }                                // and-predicate (1)
-        Expr operator!() const { return ExprPtr(new NotExpr(exp)); }                                // not-predicate
-        Expr operator--() const { return ExprPtr(new CapExpr(exp)); }                               // text capture
+        Expr operator*()  const { return new ZomExpr(exp); }                                        // zero or more times
+        Expr operator+()  const { return new OomExpr(exp); }                                        // one or more times
+        Expr operator~()  const { return new OptExpr(exp); }                                        // optional
+        Expr operator&()  const { return new AndExpr(exp); }                                        // and-predicate (1)
+        Expr operator!()  const { return new NotExpr(exp); }                                        // not-predicate
+        Expr operator--() const { return new CapExpr(exp); }                                        // text capture
 
         // (1) Overloads unary &
 
         // Postfix operators
-        Expr operator--(int) const { return ExprPtr(new CapExpr(exp)); }                            // text capture
+        Expr operator--(int) const { return new CapExpr(exp); }                                     // text capture
         template <typename T> Expr operator()(const T &t) const                                     // attachment
         { 
-            return ExprPtr(new AttExpr(exp, Expr(t).exp)); 
+            return new AttExpr(exp, Expr(t)); 
         }
 
         // Binary operators
         template <typename T, typename U> friend Expr operator>>(const T &t, const U &u)            // sequence
         { 
-            return ExprPtr(new SeqExpr(Expr(t).exp, Expr(u).exp)); 
+            return new SeqExpr(Expr(t), Expr(u)); 
         } 
         template <typename T, typename U> friend Expr operator|(const T &t, const U &u)             // ordered choice
         { 
-            return ExprPtr(new AltExpr(Expr(t).exp, Expr(u).exp)); 
+            return new AltExpr(Expr(t), Expr(u)); 
         } 
     };
 
     // Lexical primitives
     inline Expr Lit(const std::string &s) { return Expr(s); }                                       // string
     inline Expr Lit(char32_t c) { return Expr(c); }                                                 // single char
-    inline Expr Ccl(const std::string &s) { return Expr::ExprPtr(new Expr::CclExpr(s)); }           // char class
-    inline Expr Any() { return Expr::ExprPtr(new Expr::AnyExpr); }                                  // any char
+    inline Expr Ccl(const std::string &s) { return new Expr::CclExpr(s); }                          // char class
+    inline Expr Any() { return new Expr::AnyExpr; }                                                 // any char
     inline Expr Do(std::function<void()> f) { return Expr(f); }                                     // action
     inline Expr Pred(std::function<void(bool &)> f) { return Expr(f); }                             // semantic predicate
 
@@ -758,7 +759,7 @@ namespace peg
     class Rule : public Expr
     {
         // The root of this rule's expression tree
-        ExprPtr root = nullptr;
+        ExprPtr root;
 
         // A rule expression is a structure that holds a reference to the rule. 
         // This indirection allows rules to refer to other rules before they are defined.
@@ -815,11 +816,11 @@ namespace peg
     public:
 
         // Only default constructor. No coying.
-        Rule() : Expr(ExprPtr(new RuleExpr(*this))) { }
+        Rule() : Expr(new RuleExpr(*this)) { }
         Rule(const Rule &) = delete;
 
         // Assignment. Note r = r is not trivial, it makes r left-recursive.
-        template <typename T> Rule &operator=(const T &t) { root = Expr(t).exp; return *this; }
+        template <typename T> Rule &operator=(const T &t) { root = Expr(t); return *this; }
 
         // Exceptions.
         class bad_rule : public std::exception
