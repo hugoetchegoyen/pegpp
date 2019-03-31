@@ -612,63 +612,59 @@ namespace peg
 #endif
         };
 
-        struct ZomExpr : Expression         // zero or more times
+        struct RepExpr : Expression         // repetition
         {
             ExprPtr exp;
+            unsigned nmin, nmax;
             unsigned siz;
 
-            ZomExpr(ExprPtr e) : exp(e), siz(e->size()) { };
+            RepExpr(ExprPtr e, unsigned nmin, unsigned nmax) : exp(e), nmin(nmin), nmax(nmax), siz(e->size()) { };
             unsigned size() const { return siz; }
             bool parse(matcher &m) const
             {
-                while ( exp->parse(m) )
-                    ;
-                return true;
+                unsigned n;
+
+                if ( nmin == 1 )
+                {
+                    if ( !exp->parse(m) )
+                        return false;
+                    n = 1;
+                }
+                else if ( nmin > 1 )
+                {
+                    matcher::mark mk;
+                    m.set_mark(mk);
+                    for ( n = 0 ; n < nmin ; n++ ) 
+                        if ( !exp->parse(m) )
+                        {
+                            if ( n )
+                                m.go_mark(mk);
+                            return false;
+                        }
+                }
+                else
+                    n = 0;
+
+                if ( nmax )
+                    while ( n < nmax && exp->parse(m) )
+                        n++;
+                else 
+                     while ( exp->parse(m) )
+                        ;
+                    
+               return true;
             }
 #ifdef PEG_DEBUG
             void visit(unsigned &cons) const 
-            { 
-                unsigned in = cons;
-                exp->visit(cons); 
-                cons = in; 
-            }
-#endif
-        };
-
-        struct OomExpr : Expression         // one or more times
-        {
-            ExprPtr exp;
-            unsigned siz;
-
-            OomExpr(ExprPtr e) : exp(e), siz(e->size()) { };
-            unsigned size() const { return siz; }
-            bool parse(matcher &m) const
             {
-                if ( !exp->parse(m) )
-                    return false;
-                while ( exp->parse(m) )
-                    ;
-                return true;
-            }
-#ifdef PEG_DEBUG
-            void visit(unsigned &cons) const { exp->visit(cons); }
-#endif
-        };
-
-        struct OptExpr : Expression         // optional
-        {
-            ExprPtr exp;
-            unsigned siz;
-
-            OptExpr(ExprPtr e) : exp(e), siz(e->size()) { };
-            unsigned size() const { return siz; }
-            bool parse(matcher &m) const { exp->parse(m); return true; }
-#ifdef PEG_DEBUG
-            void visit(unsigned &cons) const 
-            { 
-                unsigned in = cons;
-                exp->visit(cons); 
-                cons = in; 
+                if ( nmin ) 
+                    exp->visit(cons); 
+                else
+                {
+                    unsigned in = cons;
+                    exp->visit(cons); 
+                    cons = in;
+                }
             }
 #endif
         };
@@ -693,6 +689,14 @@ namespace peg
 #endif
         };
 
+        // auxiliary class for operator[]
+        struct range
+        {
+            unsigned nmin, nmax;
+            range(unsigned n) : nmin(n), nmax(n) { }
+            range(unsigned nmin, unsigned nmax) : nmin(nmin), nmax(nmax) { }
+        };
+
         // The wrapped pointer.
         ExprPtr exp;
 
@@ -712,9 +716,9 @@ namespace peg
     public:
 
         // Prefix operators
-        Expr operator*()  const { return new ZomExpr(exp); }                                        // zero or more times
-        Expr operator+()  const { return new OomExpr(exp); }                                        // one or more times
-        Expr operator~()  const { return new OptExpr(exp); }                                        // optional
+        Expr operator*()  const { return new RepExpr(exp, 0, 0); }                                  // zero or more times
+        Expr operator+()  const { return new RepExpr(exp, 1, 0); }                                  // one or more times
+        Expr operator~()  const { return new RepExpr(exp, 0, 1); }                                  // optional
         Expr operator&()  const { return new AndExpr(exp); }                                        // and-predicate (1)
         Expr operator!()  const { return new NotExpr(exp); }                                        // not-predicate
         Expr operator--() const { return new CapExpr(exp); }                                        // text capture
@@ -727,6 +731,7 @@ namespace peg
         { 
             return new AttExpr(exp, Expr(t)); 
         }
+        Expr operator[](range r) { return new RepExpr(exp, r.nmin, r.nmax); }                       // repetition
 
         // Binary operators
         template <typename T, typename U> friend Expr operator>>(const T &t, const U &u)            // sequence
@@ -750,6 +755,7 @@ namespace peg
     // Literals
     inline namespace literals
     {
+        inline Expr operator""_lit(char c) { return Lit(c); }                                           // single char
         inline Expr operator""_lit(char32_t c) { return Lit(c); }                                       // single char
         inline Expr operator""_lit(const char *s, std::size_t len) { return Lit(std::string(s, len)); } // string
         inline Expr operator""_ccl(const char *s, std::size_t len) { return Ccl(std::string(s, len)); } // char class
@@ -898,7 +904,7 @@ namespace peg
     template <typename ...T>
     class Parser : public BasicParser
     {
-        using element_type = std::variant<std::monostate, T...>;
+        using element_type = std::variant<T...>;
         stack_type<element_type> values;
 
     public:
