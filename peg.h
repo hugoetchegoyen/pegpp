@@ -868,31 +868,36 @@ namespace peg
 #endif
     };
 
-    // Basic parser without value stack
-    class BasicParser
+    namespace details
     {
-        Rule &start;
 
-    protected:
+        // Basic parser without value stack
+        class BasicParser
+        {
+            Rule &start;
 
-        details::matcher __m;
+        protected:
 
-    public:
+            matcher __m;
 
-        // Construct with starting rule and input stream
-        BasicParser(Rule &r, std::istream &in = std::cin) : start(r), __m(in) { }
+        public:
 
-        // Parsing methods
-        bool parse() { return start.parse(__m); }
-        void accept() { __m.accept(); }
-        void clear() { __m.clear(); }
-        std::string text() const { return __m.text(); }
+            // Construct with starting rule and input stream
+            BasicParser(Rule &r, std::istream &in = std::cin) : start(r), __m(in) { }
+
+            // Parsing methods
+            bool parse() { return start.parse(__m); }
+            void accept() { __m.accept(); }
+            void clear() { __m.clear(); }
+            std::string text() const { return __m.text(); }
 
 #ifdef PEG_DEBUG
-        // Grammar check
-        void check() const { start.check(); }
+            // Grammar check
+            void check() const { start.check(); }
 #endif
-    };
+        };
+
+    }
 
 #ifdef PEG_USE_MAP
     template <typename T> using stack_type = details::value_map<T>;
@@ -902,7 +907,7 @@ namespace peg
 
     // Parser with variant type value stack. 
     template <typename ...T>
-    class Parser : public BasicParser
+    class Parser : public details::BasicParser
     {
         using element_type = std::variant<T...>;
         stack_type<element_type> values;
@@ -922,7 +927,7 @@ namespace peg
 
     // Parser with single type value stack. 
     template <typename T>
-    class Parser<T> : public BasicParser
+    class Parser<T> : public details::BasicParser
     {
         stack_type<T> values;
 
@@ -941,12 +946,11 @@ namespace peg
 
     // Parser with no value stack. 
     template <>
-    class Parser<> : public BasicParser
+    class Parser<> : public details::BasicParser
     {
     public:
 
-        // Construct with starting rule and input stream
-        Parser(Rule &r, std::istream &in = std::cin) : BasicParser(r, in) { }
+        using BasicParser::BasicParser;
     };
 
 } // namespace peg
@@ -957,7 +961,7 @@ namespace peg
 #endif
 
 // Semantic actions and predicates
-#define   _(...)            (peg::Do([&]{ __VA_ARGS__ }))  
+#define do_(...)            (peg::Do([&]{ __VA_ARGS__ }))  
 #define pa_(...)            (peg::Pred([&](bool &){ __VA_ARGS__ }))  
 #define pr_(...)            (peg::Pred([&](bool &__r){ __r = [&]()->bool{ __VA_ARGS__ }(); }))  
 #define if_(...)            (peg::Pred([&](bool &__r){ __r = (__VA_ARGS__); }))  

@@ -16,7 +16,7 @@ public:
 
     parser(istream &in = cin) : Parser(start, in)
     {
-        start   = pal--                   _( cout << text() << endl; )
+        start   = pal--                 do_( cout << text() << endl; )
                 ;
         pal     = chr >> pal >> chr     if_( val(0) == val(2) ) 
                 | chr >> chr            if_( val(0) == val(1) ) 

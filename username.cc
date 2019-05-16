@@ -36,8 +36,8 @@ public:
 
     parser(istream &in = cin) : Parser(start, in)
     {
-        start   = "username"_lit        _( cout << getlogin(); )
-                | Any()--               _( cout << text(); )
+        start   = "username"_lit        do_( cout << getlogin(); )
+                | Any()--               do_( cout << text(); )
                 ;
     }
 };

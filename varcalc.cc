@@ -29,7 +29,7 @@ public:
         // Basic lexical definitions 
 
         SPACE       = " \t\f"_ccl;
-        EOL         = ("\r\n" | "\r\n"_ccl)                 _( ++line; );
+        EOL         = ("\r\n" | "\r\n"_ccl)                 do_( ++line; );
         ALPHA       = "_a-zA-Z"_ccl;
         ALNUM       = "_a-zA-Z0-9"_ccl;
         SIGN        = "+-"_ccl;
@@ -52,8 +52,8 @@ public:
         EQUALS      = '=' >> WS;
         ENDL        = (~COMM >> EOL | ';') >> WS;
         PRINT       = "print" >> !ALNUM  >> WS;
-        IDENT       = !PRINT >> (ALPHA >> *ALNUM)-- >> WS   _( val(0) = text(); );
-        NUMBER      = (UDEC >> ~EXP)-- >> WS                _( val(0) = stod(text()); );
+        IDENT       = !PRINT >> (ALPHA >> *ALNUM)-- >> WS   do_( val(0) = text(); );
+        NUMBER      = (UDEC >> ~EXP)-- >> WS                do_( val(0) = stod(text()); );
 
         // Calculator grammar
 
@@ -61,42 +61,43 @@ public:
                     | WS >> error >> ENDL
                     ;    
 
-        error       = (+(!ENDL >> Any()))--                 _( cerr << "line " << line << ": ERROR: " << text() << endl; )
+        error       = (+(!ENDL >> Any()))--                 do_( cerr << "line " << line << ": ERROR: " << text() << endl; )
                     ;
 
-        statement   = PRINT >> expression                   _( cout << val<double>(1) << endl; )
+        statement   = PRINT >> expression                   do_( cout << val<double>(1) << endl; )
                     | expression    
                     ;
 
-        expression  = IDENT >> EQUALS >> expression         _( var[val<string>(0)] = val<double>(2); val(0) = val(2); )
+        expression  = IDENT >> EQUALS >> expression         do_( var[val<string>(0)] = val<double>(2); val(0) = val(2); )
                     | term >> *(    
-                          ADD >> term                       _( val<double>(0) += val<double>(2); )
-                        | SUB >> term                       _( val<double>(0) -= val<double>(2); )
+                          ADD >> term                       do_( val<double>(0) += val<double>(2); )
+                        | SUB >> term                       do_( val<double>(0) -= val<double>(2); )
                         )
                     ;
 
         term        = factor >> *(
-                          MUL >> factor                     _( val<double>(0) *= val<double>(2); )    
-                        | DIV >> factor                     _( val<double>(0) /= val<double>(2); )
+                          MUL >> factor                     do_( val<double>(0) *= val<double>(2); )    
+                        | DIV >> factor                     do_( val<double>(0) /= val<double>(2); )
                         )
                     ;
 
-        factor      = ADD >> factor                         _( val(0) = val(1); )                   // unary plus
-                    | SUB >> factor                         _( val(0) = -val<double>(1); )          // unary minus
+        factor      = ADD >> factor                         do_( val(0) = val(1); )                   // unary plus
+                    | SUB >> factor                         do_( val(0) = -val<double>(1); )          // unary minus
                     | atom >> *(
-                          POW >> atom                       _( val(0) = pow(val<double>(0), val<double>(2)); )
+                          POW >> atom                       do_( val(0) = pow(val<double>(0), val<double>(2)); )
                         )
                     ;
 
-        atom        = ADD >> atom                           _( val(0) = val(1); )                   // unary plus
-                    | SUB >> atom                           _( val(0) = -val<double>(1); )          // unary minus
+        atom        = ADD >> atom                           do_( val(0) = val(1); )                   // unary plus
+                    | SUB >> atom                           do_( val(0) = -val<double>(1); )          // unary minus
                     | NUMBER 
-                    | IDENT                                 _(
+                    | IDENT                                 do_
+                                                            (
                                                                 if ( !var.count(val<string>(0)) )
                                                                     cerr << "line " << line << ": defining " << val<string>(0) << " = 0\n";
                                                                 val(0) = var[val<string>(0)]; 
-                                                             )
-                    | LPAR >> expression >> RPAR            _( val(0) = val(1); )
+                                                            )
+                    | LPAR >> expression >> RPAR            do_( val(0) = val(1); )
                     ;
 
 #ifdef PEG_DEBUG
