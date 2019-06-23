@@ -398,8 +398,8 @@ namespace peg
         // Syntax tree structures
         struct Expression 
         { 
-            virtual bool parse(matcher &m) const = 0;
             virtual unsigned size() const { return 1; }             // by default expressions use one value stack slot
+            virtual bool parse(matcher &m) const = 0;
 #ifdef PEG_DEBUG
             virtual void visit(unsigned &cons) const = 0;
 #endif
@@ -868,89 +868,44 @@ namespace peg
 #endif
     };
 
-    namespace details
+    // Parser 
+    template <typename ...T>
+    class Parser 
     {
-
-        // Basic parser without value stack
-        class BasicParser
-        {
-            Rule &start;
-
-        protected:
-
-            matcher __m;
-
-        public:
-
-            // Construct with starting rule and input stream
-            BasicParser(Rule &r, std::istream &in = std::cin) : start(r), __m(in) { }
-
-            // Parsing methods
-            bool parse() { return start.parse(__m); }
-            void accept() { __m.accept(); }
-            void clear() { __m.clear(); }
-            std::string text() const { return __m.text(); }
-
-#ifdef PEG_DEBUG
-            // Grammar check
-            void check() const { start.check(); }
-#endif
-        };
-
-    }
+        using element_type = std::variant<std::monostate, T...>;
 
 #ifdef PEG_USE_MAP
-    template <typename T> using stack_type = details::value_map<T>;
+        using stack_type = details::value_map<element_type>;
 #else
-    template <typename T> using stack_type = details::value_vect<T>;
+        using stack_type = details::value_vect<element_type>;
 #endif
+ 
+        Rule &__start;
+        details::matcher __m;
+        stack_type __values;
 
-    // Parser with variant type value stack. 
-    template <typename ...T>
-    class Parser : public details::BasicParser
-    {
-        using element_type = std::variant<T...>;
-        stack_type<element_type> values;
-
-    public:
+   public:
 
         // Construct with starting rule and input stream
-        Parser(Rule &r, std::istream &in = std::cin) : BasicParser(r, in), values(__m) { }
+        Parser(Rule &r, std::istream &in = std::cin) : __start(r), __m(in), __values(__m) { }
+
+        // Parsing methods
+        bool parse() { return __start.parse(__m); }
+        void accept() { __m.accept(); }
+        void clear() { __m.clear(); }
+        std::string text() const { return __m.text(); }
+
+#ifdef PEG_DEBUG
+        // Grammar check
+        void check() const { __start.check(); }
+#endif
 
         // Reference to a value stack slot
-        element_type &val(std::size_t idx) { return values[idx]; }
+        element_type &val(std::size_t idx) { return __values[idx]; }
 
         // Reference to the value stored in a value stack slot. Throws std::bad_variant_access
         // if the slot does not currently hold a value of the required type.
-        template <typename U> U &val(std::size_t idx) { return std::get<U>(values[idx]); }
-    };
-
-    // Parser with single type value stack. 
-    template <typename T>
-    class Parser<T> : public details::BasicParser
-    {
-        stack_type<T> values;
-
-    public:
-
-        // Construct with starting rule and input stream
-        Parser(Rule &r, std::istream &in = std::cin) : BasicParser(r, in), values(__m) { }
-
-        // Reference to a value stack slot
-        T &val(std::size_t idx) { return values[idx]; }
-
-        // Reference to a value stack slot with explicit type qualification.
-        // Provided for compatibility with the variant case.
-        template <typename U> U &val(std::size_t idx) { return values[idx]; }
-    };
-
-    // Parser with no value stack. 
-    template <>
-    class Parser<> : public details::BasicParser
-    {
-    public:
-
-        using BasicParser::BasicParser;
+        template <typename U> U &val(std::size_t idx) { return std::get<U>(__values[idx]); }
     };
 
 } // namespace peg
