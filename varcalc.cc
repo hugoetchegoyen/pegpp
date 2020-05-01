@@ -6,7 +6,7 @@
 
 #include <math.h>
 
-// #define PEG_DEBUG            // Uncomment for checking the grammar
+//#define PEG_DEBUG            // Uncomment for checking the grammar
 
 #include "peg.h"
 

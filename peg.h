@@ -784,6 +784,7 @@ namespace peg
         // Variables for rule visitor
         bool visiting = false, visited = false; 
         unsigned my_cons;
+        const char *name = nullptr;
 
         // Visit the paths from this rule
         void visit(unsigned &cons)  
@@ -852,11 +853,11 @@ namespace peg
         }
 
 #ifdef PEG_DEBUG
-        // Rule name
-        const char *name = nullptr;
+        // Enable debugging.
+        void set_name(const char *debug_name) { name = debug_name; };
 
         // Check the grammar starting here for uninitialized rules and 
-        // left recursion. Can be done only once.
+        // left recursion. This can be done only once.
         void check()
         {
             unsigned cons = 0;
@@ -912,7 +913,7 @@ namespace peg
 
 #ifdef PEG_DEBUG
 // Set a rule's name for debugging
-#define peg_debug(rule)     rule.name = #rule
+#define peg_debug(rule)     rule.set_name(#rule)
 #endif
 
 // Semantic actions and predicates
