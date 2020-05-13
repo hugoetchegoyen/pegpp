@@ -28,26 +28,16 @@ int main()
 using namespace std;
 using namespace peg;
 
-class parser : public Parser<>
-{
-    Rule start;
-
-public:
-
-    parser(istream &in = cin) : Parser(start, in)
-    {
-        start   = "username"_lit        do_( cout << getlogin(); )
-                | Any()--               do_( cout << text(); )
-                ;
-    }
-};
-
 int main()
 {
-    parser p;
-    while ( p.parse() )
-        p.accept();
+    matcher m;
+
+    Rule start;
+
+    start   = "username"_lit        do_( cout << getlogin(); )
+            | Any()--               do_( cout << m.text(); )
+            ;
+
+    while ( start.parse(m) )
+        m.accept();
 }
-
-
-

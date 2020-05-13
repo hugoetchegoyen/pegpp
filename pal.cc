@@ -8,29 +8,23 @@
 using namespace std;
 using namespace peg;
 
-class parser : public Parser<string>
-{
-    Rule start, pal, chr;
-
-public:
-
-    parser(istream &in = cin) : Parser(start, in)
-    {
-        start   = pal--                 do_( cout << text() << endl; )
-                ;
-        pal     = chr >> pal >> chr     if_( val(0) == val(2) ) 
-                | chr >> chr            if_( val(0) == val(1) ) 
-                | chr
-                ;
-        chr     = Any()--               pa_( val(0) = text(); )  
-                ;
-   }
-};
-
 int main()
 {
-    parser p;
-    while ( p.parse() )
-        p.accept();
+    matcher m;
+    value_stack<string> v(m);
+
+    Rule start, pal, chr;
+
+    start   = pal--                 do_( cout << m.text() << endl; )
+            ;
+    pal     = chr >> pal >> chr     if_( v[0] == v[2] ) 
+            | chr >> chr            if_( v[0] == v[1] ) 
+            | chr
+            ;
+    chr     = Any()--               pa_( v[0] = m.text(); )  
+            ;
+
+    while ( start.parse(m) )
+        m.accept();
 }
 

@@ -16,376 +16,369 @@
 #include <locale>
 #include <variant>
 #include <memory>
+    
 
 namespace peg
 {
     class Expr;
     class Rule;
 
-    namespace details
+    // An auto-resizing vector
+    template <typename T> 
+    class vect : public std::vector<T>
     {
+        using vector = std::vector<T>;
 
-        // An auto-resizing vector
-        template <typename T> 
-        class vect : public std::vector<T>
+    public:
+
+        using vector::vector;
+
+        T &operator[](std::size_t idx)
         {
-            using vector = std::vector<T>;
+            if ( idx >= vector::size() )
+                vector::resize(idx + 1);
+            return vector::operator[](idx);
+        }
+    };
+
+   // Lexical matcher, scheduled actions handler, text capture and value stack helper
+    class matcher
+    {
+        // Constants
+        static const unsigned BUFLEN = 1024;
+        static const unsigned ACTSIZE = 32;
+        
+        // Friends
+        friend class peg::Expr;
+        friend class peg::Rule;
+        template <typename T> friend class value_stack;
+
+        // Types
+        class char_class  
+        { 
+
+            struct char_range 
+            { 
+                char32_t low; 
+                char32_t high; 
+    
+                char_range(char32_t lo, char32_t hi) : low(lo), high(hi) { }
+                bool operator<(const char_range &r) const { return high < r.low; }
+                void merge(const char_range &cr) 
+                {
+                    if ( cr.low < low )
+                        low = cr.low;
+                    if ( cr.high > high )
+                        high = cr.high;
+                }
+            };
+
+            static const unsigned NBITS = 256;
+            std::bitset<NBITS> bs;              // optimization for the first NBITS characters  
+            std::set<char_range> cs;            // for higher characters
+            bool inverted = false;
+
+            void add_range(char32_t lo, char32_t hi)
+            {
+                // Use the bitset for low characters
+                while ( lo < NBITS && lo <= hi )
+                    bs.set(lo++);
+
+                if ( lo > hi )
+                    return;
+
+                // Use the range set for higher characters
+                char_range cr(lo, hi);
+
+                // Merge and remove overlapping ranges
+                for ( auto iter = cs.find(cr) ; iter != cs.end() ; iter = cs.find(cr) )
+                {
+                    cr.merge(*iter);
+                    cs.erase(iter);
+                }
+ 
+                // Insert aggregate range
+                cs.insert(cr);
+            }
 
         public:
 
-            T &operator[](std::size_t idx)
+            char_class(const std::string &s) 
             {
-                if ( idx >= vector::size() )
-                    vector::resize(idx + 1);
-                return vector::operator[](idx);
-            }
-        };
+                // Convert s to a 32-bit string
+                struct cvt : std::codecvt<char32_t, char, std::mbstate_t> { };
+                std::wstring_convert<cvt, char32_t> converter;
+                std::u32string us = converter.from_bytes(s);
 
-        // Lexical matcher, scheduled actions handler, text capture and value stack helper
-        class matcher
-        {
-            // Constants
-            static const unsigned BUFLEN = 1024;
-            static const unsigned ACTSIZE = 32;
-            
-            // Friends
-            friend class peg::Expr;
-            friend class peg::Rule;
-            template <typename T> friend class value_vect;
-            template <typename T> friend class value_map;
-
-            // Types
-            class char_class  
-            { 
-
-                struct char_range 
-                { 
-                    char32_t low; 
-                    char32_t high; 
-        
-                    char_range(char32_t lo, char32_t hi) : low(lo), high(hi) { }
-                    bool operator<(const char_range &r) const { return high < r.low; }
-                    void merge(const char_range &cr) 
-                    {
-                        if ( cr.low < low )
-                            low = cr.low;
-                        if ( cr.high > high )
-                            high = cr.high;
-                    }
-                };
-
-                static const unsigned NBITS = 256;
-                std::bitset<NBITS> bs;              // optimization for the first NBITS characters  
-                std::set<char_range> cs;            // for higher characters
-                bool inverted = false;
-
-                void add_range(char32_t lo, char32_t hi)
-                {
-                    // Use the bitset for low characters
-                    while ( lo < NBITS && lo <= hi )
-                        bs.set(lo++);
-
-                    if ( lo > hi )
-                        return;
-
-                    // Use the range set for higher characters
-                    char_range cr(lo, hi);
-
-                    // Merge and remove overlapping ranges
-                    for ( auto iter = cs.find(cr) ; iter != cs.end() ; iter = cs.find(cr) )
-                    {
-                        cr.merge(*iter);
-                        cs.erase(iter);
-                    }
+                const char32_t *p = us.c_str(), *q = p + us.length(); 
      
-                    // Insert aggregate range
-                    cs.insert(cr);
+                if ( p == q )
+                    return;
+
+                if ( p[0] == '^' )                      // inverted class
+                {
+                    inverted = true;
+                    p++;
                 }
 
-            public:
-
-                char_class(const std::string &s) 
-                {
-                    // Convert s to a 32-bit string
-                    struct cvt : std::codecvt<char32_t, char, std::mbstate_t> { };
-                    std::wstring_convert<cvt, char32_t> converter;
-                    std::u32string us = converter.from_bytes(s);
-
-                    const char32_t *p = us.c_str(), *q = p + us.length(); 
-         
-                    if ( p == q )
-                        return;
-
-                    if ( p[0] == '^' )                      // inverted class
+                while ( p < q )
+                    if ( p + 2 < q && p[1] == '-' )     // character range
                     {
-                        inverted = true;
+                        add_range(p[0], p[2]);
+                        p += 3;
+                    }
+                    else                                // single character
+                    {
+                        add_range(p[0], p[0]);
                         p++;
                     }
-
-                    while ( p < q )
-                        if ( p + 2 < q && p[1] == '-' )     // character range
-                        {
-                            add_range(p[0], p[2]);
-                            p += 3;
-                        }
-                        else                                // single character
-                        {
-                            add_range(p[0], p[0]);
-                            p++;
-                        }
-                }
-
-                bool find(char32_t value) const
-                { 
-                    // Lookup low values in the bitset, higher values in the range set.
-                    bool found = value < NBITS ? bs[value] : cs.count(char_range(value, value));
-                    return inverted ? !found : found; 
-                }
-            };
-     
-            struct mark { unsigned pos, actpos, begin, end; };
-     
-            struct action
-            {
-                std::function<void()> func;
-                unsigned begin, end, base;
-            };
-
-            // Properties
-            std::istream &in;
-            std::string ibuf;
-            char *buf = new char[BUFLEN];
-            unsigned pos = 0;
-
-            unsigned cap_begin = 0;
-            unsigned cap_end = 0;
-
-            vect<action> actions;
-            unsigned actpos = 0;
-
-            unsigned level = 0;
-            unsigned base = 0;
-
-            // Read a raw char from input.
-            bool getc(char &c) 
-            {
-                if ( pos == ibuf.length() )     // try to get more input
-                {
-                    in.read(buf, BUFLEN);
-                    int n = in.gcount();
-                    if ( n <= 0 )
-                        return false;
-                    ibuf.append(buf, n);
-                }
-
-                c = ibuf[pos++]; 
-                return true;
             }
 
-            // Read a 32-bit char from input.
-            // Assumes (and does not check) correct utf8 encoding.
-            bool getc32(char32_t &u)
-            {
-                char c;
-                int n;
+            bool find(char32_t value) const
+            { 
+                // Lookup low values in the bitset, higher values in the range set.
+                bool found = value < NBITS ? bs[value] : cs.count(char_range(value, value));
+                return inverted ? !found : found; 
+            }
+        };
+ 
+        struct mark { unsigned pos, actpos, begin, end; };
+ 
+        struct action
+        {
+            std::function<void()> func;
+            unsigned begin, end, base;
+        };
 
+        // Properties
+        std::istream &in;
+        std::string ibuf;
+        char *buf = new char[BUFLEN];
+        unsigned pos = 0;
+
+        unsigned cap_begin = 0;
+        unsigned cap_end = 0;
+
+        vect<action> actions;
+        unsigned actpos = 0;
+
+        unsigned level = 0;
+        unsigned base = 0;
+
+        // Read a raw char from input.
+        bool getc(char &c) 
+        {
+            if ( pos == ibuf.length() )     // try to get more input
+            {
+                in.read(buf, BUFLEN);
+                int n = in.gcount();
+                if ( n <= 0 )
+                    return false;
+                ibuf.append(buf, n);
+            }
+
+            c = ibuf[pos++]; 
+            return true;
+        }
+
+        // Read a 32-bit char from input.
+        // Assumes (and does not check) correct utf8 encoding.
+        bool getc32(char32_t &u)
+        {
+            char c;
+            int n;
+
+            if ( !getc(c) )
+                return false;
+
+            u = c & 0xFF;
+
+            if ( (c & 0xC0) != 0xC0 )   // not an utf8 sequence
+                return true;
+
+            // Decode first byte of sequence
+            switch ( (c >> 3) & 0x7 )
+            {
+                case 0x0:               // 2-byte sequence
+                case 0x1:
+                case 0x2:
+                case 0x3:
+                    u &= 0x1F;
+                    n = 1;
+                    break;
+
+                case 0x4:               // 3-byte sequence
+                case 0x5:
+                    u &= 0x0F;
+                    n = 2;
+                    break;
+
+                case 0x6:               // 4-byte sequence
+                    u &= 0x07;
+                    n = 3;
+                    break;
+
+                default:
+                    return true;
+            }
+
+            while ( n-- )               // continuation bytes
+            {
                 if ( !getc(c) )
                     return false;
-
-                u = c & 0xFF;
-
-                if ( (c & 0xC0) != 0xC0 )   // not an utf8 sequence
-                    return true;
-
-                // Decode first byte of sequence
-                switch ( (c >> 3) & 0x7 )
-                {
-                    case 0x0:               // 2-byte sequence
-                    case 0x1:
-                    case 0x2:
-                    case 0x3:
-                        u &= 0x1F;
-                        n = 1;
-                        break;
-
-                    case 0x4:               // 3-byte sequence
-                    case 0x5:
-                        u &= 0x0F;
-                        n = 2;
-                        break;
-
-                    case 0x6:               // 4-byte sequence
-                        u &= 0x07;
-                        n = 3;
-                        break;
-
-                    default:
-                        return true;
-                }
-
-                while ( n-- )               // continuation bytes
-                {
-                    if ( !getc(c) )
-                        return false;
-                    u <<= 6 ;
-                    u |= (c & 0x3F);
-                }
-
-                return true; 
+                u <<= 6 ;
+                u |= (c & 0x3F);
             }
 
-            // Matching primitives
+            return true; 
+        }
 
-            bool match_any() { char32_t c; return getc32(c); }
+        // Matching primitives
 
-            bool match_string(const std::string &s)
-            {
-                char c;
-                unsigned len = s.length();
-                unsigned mpos = pos;
+        bool match_any() { char32_t c; return getc32(c); }
 
-                for ( unsigned i = 0 ; i < len ; i++ )
-                    if ( !getc(c) || c != s[i] )
-                    {
-                        pos = mpos;
-                        return false;
-                    }
+        bool match_string(const std::string &s)
+        {
+            char c;
+            unsigned len = s.length();
+            unsigned mpos = pos;
 
-                return true;
-            }
-
-            bool match_char(char32_t ch)
-            {
-                char32_t u;
-                unsigned mpos = pos;
-
-                if ( !getc32(u) || u != ch )
+            for ( unsigned i = 0 ; i < len ; i++ )
+                if ( !getc(c) || c != s[i] )
                 {
                     pos = mpos;
                     return false;
                 }
 
-                return true;
-            }
+            return true;
+        }
 
-            bool match_class(const char_class &ccl)
-            {
-                char32_t u;
-                unsigned mpos = pos;
-     
-                if ( !getc32(u) || !ccl.find(u) )
-                {
-                    pos = mpos;
-                    return false;
-                }
-
-                return true;
-            }
-
-            // Schedule an action
-            void schedule(std::function<void()> f)
-            {
-                action &act = actions[actpos++];
-                act.func = f;
-                act.begin = cap_begin;
-                act.end = cap_end;
-                act.base = base;
-            }
-
-            // Set a mark and backtrack to it
-            void set_mark(mark &mk) const { mk.pos = pos; mk.actpos = actpos; mk.begin = cap_begin; mk.end = cap_end; }
-            void go_mark(const mark &mk) { pos = mk.pos; actpos = mk.actpos; cap_begin = mk.begin; cap_end = mk.end; }
-
-            // Handle indices for automatic value stacks
-            unsigned get_level() const { return level; }
-            void set_level(unsigned n) { level = n; }
-
-            unsigned get_base() const { return base; }
-            void set_base(unsigned n) { base = n; }
-
-            // Capture text
-            unsigned begin_capture() const { return pos; }
-            void end_capture(unsigned b) { cap_begin = b; cap_end = pos; }
-
-        public:
-
-            // Construct from an std::istream, default is std::cin.
-            matcher(std::istream &is = std::cin) : in(is) { actions.reserve(ACTSIZE); }
-            ~matcher() { delete[] buf; }
-            matcher(const matcher &) = delete;                  // not copyable
-            matcher &operator=(const matcher &) = delete;       // not assignable
-
-            // Execute scheduled actions and consume matched input
-            void accept() 
-            { 
-                for ( unsigned i = 0 ; i < actpos ; i++ )
-                {
-                    action &act = actions[i];
-                    cap_begin = act.begin;
-                    cap_end = act.end;
-                    base = act.base;
-                    act.func();
-                }
-     
-                actpos = 0;
-
-                ibuf.erase(0, pos); 
-                pos = 0; 
-
-                cap_begin = cap_end = 0;
-                base = level = 0;
-            } 
-
-            // Discard actions and input
-            void clear() 
-            { 
-                actpos = 0;
-
-                ibuf = "";
-                pos = 0;
-
-                cap_begin = cap_end = 0;
-                base = level = 0;
-            }
-
-            // Get last captured text
-            std::string text() const { return ibuf.substr(cap_begin, cap_end - cap_begin); }
-        };
-
-        // Value stack on an auto-resizing vector
-        template <typename T>
-        class value_vect
+        bool match_char(char32_t ch)
         {
-            vect<T> values;
-            const matcher &mt;
-            static const unsigned VALSIZE = 128;
+            char32_t u;
+            unsigned mpos = pos;
 
-        public:
+            if ( !getc32(u) || u != ch )
+            {
+                pos = mpos;
+                return false;
+            }
 
-            value_vect(const matcher &m)  : mt(m) { values.reserve(VALSIZE); }
-            T &operator[](std::size_t idx) { return values[mt.get_base() + idx]; }
-        };
+            return true;
+        }
 
-        // Value stack on a map
-        template <typename T>
-        class value_map
+        bool match_class(const char_class &ccl)
         {
-            std::map<std::size_t, T> values;
-            const matcher &mt;
+            char32_t u;
+            unsigned mpos = pos;
+ 
+            if ( !getc32(u) || !ccl.find(u) )
+            {
+                pos = mpos;
+                return false;
+            }
 
-        public:
+            return true;
+        }
 
-            value_map(const matcher &m)  : mt(m) { }
-            T &operator[](std::size_t idx) { return values[mt.get_base() + idx]; }
-        };
+        // Schedule an action
+        void schedule(std::function<void()> f)
+        {
+            action &act = actions[actpos++];
+            act.func = f;
+            act.begin = cap_begin;
+            act.end = cap_end;
+            act.base = base;
+        }
 
-    } // namespace peg::details
+        // Set a mark and backtrack to it
+        void set_mark(mark &mk) const { mk.pos = pos; mk.actpos = actpos; mk.begin = cap_begin; mk.end = cap_end; }
+        void go_mark(const mark &mk) { pos = mk.pos; actpos = mk.actpos; cap_begin = mk.begin; cap_end = mk.end; }
+
+        // Handle indices for automatic value stacks
+        unsigned get_level() const { return level; }
+        void set_level(unsigned n) { level = n; }
+
+        unsigned get_base() const { return base; }
+        void set_base(unsigned n) { base = n; }
+
+        // Capture text
+        unsigned begin_capture() const { return pos; }
+        void end_capture(unsigned b) { cap_begin = b; cap_end = pos; }
+
+    public:
+
+        // Construct from an std::istream, default is std::cin.
+        matcher(std::istream &is = std::cin) : in(is) { actions.reserve(ACTSIZE); }
+        ~matcher() { delete[] buf; }
+        matcher(const matcher &) = delete;                  // not copyable
+        matcher &operator=(const matcher &) = delete;       // not assignable
+
+        // Execute scheduled actions and consume matched input
+        void accept() 
+        { 
+            for ( unsigned i = 0 ; i < actpos ; i++ )
+            {
+                action &act = actions[i];
+                cap_begin = act.begin;
+                cap_end = act.end;
+                base = act.base;
+                act.func();
+            }
+ 
+            actpos = 0;
+
+            ibuf.erase(0, pos); 
+            pos = 0; 
+
+            cap_begin = cap_end = 0;
+            base = level = 0;
+        } 
+
+        // Discard actions and input
+        void clear() 
+        { 
+            actpos = 0;
+
+            ibuf = "";
+            pos = 0;
+
+            cap_begin = cap_end = 0;
+            base = level = 0;
+        }
+
+        // Get last captured text
+        std::string text() const { return ibuf.substr(cap_begin, cap_end - cap_begin); }
+    };
+
+    // Value stack 
+    template <typename T>
+    class value_stack
+    {
+        static const unsigned VALSIZE = 128;
+
+        const matcher &mt;
+        vect<T> values;
+
+    public:
+
+        value_stack(const matcher &m, std::size_t capacity = VALSIZE) : mt(m) { values.reserve(capacity); }
+        T &operator[](std::size_t idx) { return values[mt.get_base() + idx]; }
+    };
+
+    template <typename... T> 
+    class var : public std::variant<std::monostate, T...>
+    {
+    public:
+
+        using std::variant<std::monostate, T...>::variant;
+
+        template <typename U> U &val() { return std::get<U>(*this); }
+    };
 
     // This class wraps a polimorphic expression pointer, 
     class Expr
     {
-        using matcher = details::matcher;
-
         // Friends
         friend Expr Lit(char32_t c);
         friend Expr Lit(const std::string &s);
@@ -873,22 +866,17 @@ namespace peg
     template <typename ...T>
     class Parser 
     {
-        using element_type = std::variant<std::monostate, T...>;
+        using element_type = var<T...>;
 
-#ifdef PEG_USE_MAP
-        using stack_type = details::value_map<element_type>;
-#else
-        using stack_type = details::value_vect<element_type>;
-#endif
- 
         Rule &__start;
-        details::matcher __m;
-        stack_type __values;
+        matcher __m;
+        value_stack<element_type> __values;
 
    public:
 
         // Construct with starting rule and input stream
         Parser(Rule &r, std::istream &in = std::cin) : __start(r), __m(in), __values(__m) { }
+        Parser(Rule &r, std::size_t capacity, std::istream &in = std::cin) : __start(r), __m(in), __values(__m, capacity) { }
 
         // Parsing methods
         bool parse() { return __start.parse(__m); }
