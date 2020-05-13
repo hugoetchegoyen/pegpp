@@ -51,6 +51,25 @@ Pal:
         aaa   -> aa
                  a
 
+Intcalc:
+
+    An integer calculator that supports the four basic operations and 
+    grouping with parentheses.
+
+    Input/output sample:
+
+    (1 + 2) * 3 -> 9
+
+Numsum:
+
+    An artificial example to illustrate the use of a variant value stack.
+    Copies input to output but recognizes sums of integers and replaces
+    them with their numeric values.
+
+    Input/output sample:
+
+    aaabbb100+0001+000000003ccc011ddd -> aaabbb104ccc11ddd
+
 Varcalc:
 
     A more complex example. Varcalc is a floating-point calculator.
