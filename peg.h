@@ -815,11 +815,12 @@ namespace peg
 
     public:
 
-        // Only default constructor. No coying.
+        // Default constructor. No copying.
         Rule() : Expr(new RuleExpr(*this)) { }
         Rule(const Rule &) = delete;
 
-        // Assignment. Note r = r is not trivial, it makes r left-recursive.
+        // Assign from an expression.
+        // Note r = r is not trivial, it makes r left-recursive.
         template <typename T> Rule &operator=(const T &t) { root = Expr(t); return *this; }
 
         // Exceptions.
