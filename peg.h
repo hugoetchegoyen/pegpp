@@ -442,12 +442,13 @@ namespace peg
 #endif
         };
 
-        struct AndExpr : Expression         // and-predicate
+        struct LahExpr : Expression         // lookahead predicate
         {
             ExprPtr exp;
             unsigned siz;
+            bool invert;
 
-            AndExpr(ExprPtr e) : exp(e), siz(e->size()) { };
+            LahExpr(ExprPtr e, bool inv) : exp(e), siz(e->size()), invert(inv) { };
             unsigned size() const { return siz; }
             bool parse(matcher &m) const 
             { 
@@ -456,37 +457,9 @@ namespace peg
                 if ( exp->parse(m) )
                 {
                     m.go_mark(mk);
-                    return true;
+                    return !invert;
                 } 
-                return false;
-            }
-#ifdef PEG_DEBUG
-            void visit(unsigned &cons) const 
-            { 
-                unsigned in = cons; 
-                exp->visit(cons); 
-                cons = in; 
-            }
-#endif
-        };
-
-        struct NotExpr : Expression         // not-predicate
-        {
-            ExprPtr exp;
-            unsigned siz;
-
-            NotExpr(ExprPtr e) : exp(e), siz(e->size()) { };
-            unsigned size() const { return siz; }
-            bool parse(matcher &m) const 
-            { 
-                matcher::mark mk;
-                m.set_mark(mk);
-                if ( exp->parse(m) )
-                {
-                    m.go_mark(mk);
-                    return false;
-                } 
-                return true;
+                return invert;
             }
 #ifdef PEG_DEBUG
             void visit(unsigned &cons) const 
@@ -712,8 +685,8 @@ namespace peg
         Expr operator*()  const { return new RepExpr(exp, 0, 0); }                                  // zero or more times
         Expr operator+()  const { return new RepExpr(exp, 1, 0); }                                  // one or more times
         Expr operator~()  const { return new RepExpr(exp, 0, 1); }                                  // optional
-        Expr operator&()  const { return new AndExpr(exp); }                                        // and-predicate (1)
-        Expr operator!()  const { return new NotExpr(exp); }                                        // not-predicate
+        Expr operator&()  const { return new LahExpr(exp, false); }                                 // and-predicate (1)
+        Expr operator!()  const { return new LahExpr(exp, true); }                                  // not-predicate
         Expr operator--() const { return new CapExpr(exp); }                                        // text capture
 
         // (1) Overloads unary &
