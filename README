@@ -2,20 +2,25 @@ The pegpp library
 -----------------
 
 Pegpp is a header-only library that allows building PEG grammars with embedded actions
-in C++ and parse them directly, without intermediate code generation.
+in C++ without intermediate code generation.
 
 The grammars are expressed in an EBNF-like syntax inspired by the PEG and LEG parser 
 compilers by Ian Piumarta. Value stack handling is inspired by YACC.
 
+Library sources
+---------------
+
+peg.h
+
 Requirements
 ------------
 
-C++17. Tested with gcc 8.2.0 on Linux.
+C++17. Tested on Linux with gcc 8.2.0 through 10.3.0.
 
 Documentation
 -------------
 
-See pegpp.pdf.
+pegpp.pdf
 
 Examples
 --------
@@ -62,7 +67,7 @@ Intcalc:
 
 Numsum:
 
-    An artificial example to illustrate the use of a variant value stack.
+    An example to illustrate the use of a variant value stack.
     Copies input to output but recognizes sums of integers and replaces
     them with their numeric values.
 
@@ -72,7 +77,7 @@ Numsum:
 
 Varcalc:
 
-    A more complex example. Varcalc is a floating-point calculator.
+    A floating-point calculator with named variables.
 
         Values are doubles. Valid input formats: 
 

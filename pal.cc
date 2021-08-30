@@ -10,21 +10,30 @@ using namespace peg;
 
 int main()
 {
-    matcher m;
-    value_stack<string> v(m);
+    class pal_parser : public Parser<string>
+    {
+        Rule start, pal, chr;
 
-    Rule start, pal, chr;
+    public:
 
-    start   = pal--                 do_( cout << m.text() << endl; )
-            ;
-    pal     = chr >> pal >> chr     if_( v[0] == v[2] ) 
-            | chr >> chr            if_( v[0] == v[1] ) 
-            | chr
-            ;
-    chr     = Any()--               pa_( v[0] = m.text(); )  
-            ;
+        pal_parser(istream &in = cin) : Parser(start, in)
+        {
+            start   = pal--                 do_( cout << text() << endl; )
+                    ;
 
-    while ( start.parse(m) )
-        m.accept();
+            pal     = chr >> pal >> chr     if_( val(0) == val(2) ) 
+                    | chr >> chr            if_( val(0) == val(1) ) 
+                    | chr
+                    ;
+
+            chr     = Any()--               pa_( val(0) = text(); )  
+                    ;       
+        }
+    };
+
+    pal_parser p;
+
+    while ( p.parse() )
+        p.accept();
 }
 

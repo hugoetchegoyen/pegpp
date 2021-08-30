@@ -30,14 +30,14 @@ using namespace peg;
 
 int main()
 {
-    matcher m;
-
     Rule start;
 
+    Parser p(start);
+
     start   = "username"_lit        do_( cout << getlogin(); )
-            | Any()--               do_( cout << m.text(); )
+            | Any()--               do_( cout << p.text(); )
             ;
 
-    while ( start.parse(m) )
-        m.accept();
+    while ( p.parse() )
+        p.accept();
 }

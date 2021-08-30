@@ -5,25 +5,35 @@
 using namespace std;
 using namespace peg;
 
-int main()
+class numsum : public Parser<variant<int, string>>
 {
-    matcher m;
-    value_stack<var<int, string>> v(m);
-
     Rule start, sum, other, number;
 
-    start   = sum                   do_( cout << v[0].val<int>(); )
-            | other                 do_( cout << v[0].val<string>(); )
-            ;
-    sum     = number >> *(
-                    '+' >> number   do_( v[0].val<int>() += v[2].val<int>(); )
-                )
-            ;
-    number  = (+"0-9"_ccl)--        do_( v[0] = stoi(m.text()); )     // return int
-            ;
-    other   = Any()--               do_( v[0] = m.text(); )           // return string
-            ;
+public:
 
-    while ( start.parse(m) )
-        m.accept();
+    numsum(istream &in = cin) : Parser(start, in)
+    {
+        start   = sum                   do_( cout << val<int>(0); )
+                | other                 do_( cout << val<string>(0); )
+                ;
+
+        sum     = number >> *(
+                        '+' >> number   do_( val<int>(0) += val<int>(2); )
+                    )
+                ;
+
+        number  = (+"0-9"_ccl)--        do_( val(0) = stoi(text()); )     // return int
+                ;
+
+        other   = Any()--               do_( val(0) = text(); )           // return string
+                ;
+    }
+};
+
+int main()
+{
+    numsum ns;
+    
+    while ( ns.parse() )
+        ns.accept();
 }

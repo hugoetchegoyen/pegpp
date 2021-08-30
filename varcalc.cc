@@ -13,7 +13,7 @@
 using namespace std;
 using namespace peg;
 
-class calculator : public Parser<double, string>
+class calculator : public Parser<variant<double, string>>
 {
     map<string, double> var;
     unsigned line = 1;
