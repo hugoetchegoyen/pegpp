@@ -49,11 +49,13 @@ namespace peg
             // Constants
             static const unsigned BUFLEN = 1024;
             static const unsigned ACTSIZE = 32;
+            static const unsigned ERRORLEN = 60;
             
             // Friends
             friend class peg::Expr;
             friend class peg::Rule;
             template <typename T> friend class value_stack;
+            friend class parser;
 
             // Types
             class char_class  
@@ -164,8 +166,21 @@ namespace peg
             vect<action> actions;
             unsigned actpos = 0;
 
+            std::set<unsigned> lines;
+            unsigned prev_lines = 0;
+
             unsigned level = 0;
             unsigned base = 0;
+
+            unsigned error_pos = 0;
+            std::string error_info;
+            unsigned in_lah = 0;
+
+           // Construct from an std::istream, default is std::cin.
+            matcher(std::istream &is = std::cin) : in(is) { actions.reserve(ACTSIZE); }
+            ~matcher() { delete[] buf; }
+            matcher(const matcher &) = delete;                  // not copyable
+            matcher &operator=(const matcher &) = delete;       // not assignable
 
             // Read a raw char from input.
             bool getc(char &c) 
@@ -179,7 +194,8 @@ namespace peg
                     ibuf.append(buf, n);
                 }
 
-                c = ibuf[pos++]; 
+                if ( (c = ibuf[pos++]) == '\n' )
+                    lines.insert(pos);
                 return true;
             }
 
@@ -286,6 +302,9 @@ namespace peg
             // Schedule an action
             void schedule(std::function<void()> f)
             {
+                if ( in_lah )
+                    return;
+
                 action &act = actions[actpos++];
                 act.func = f;
                 act.begin = cap_begin;
@@ -308,13 +327,9 @@ namespace peg
             unsigned begin_capture() const { return pos; }
             void end_capture(unsigned b) { cap_begin = b; cap_end = pos; }
 
-        public:
-
-            // Construct from an std::istream, default is std::cin.
-            matcher(std::istream &is = std::cin) : in(is) { actions.reserve(ACTSIZE); }
-            ~matcher() { delete[] buf; }
-            matcher(const matcher &) = delete;                  // not copyable
-            matcher &operator=(const matcher &) = delete;       // not assignable
+            // Increase/decrease lookahead level
+            void begin_lah() { in_lah++; }
+            void end_lah() { in_lah--; }
 
             // Execute scheduled actions and consume matched input
             void accept() 
@@ -335,6 +350,12 @@ namespace peg
 
                 cap_begin = cap_end = 0;
                 base = level = 0;
+
+                prev_lines += lines.size();
+                lines.clear();
+                error_pos = 0;
+                error_info = "";
+                in_lah = 0;
             } 
 
             // Discard actions and input
@@ -347,11 +368,52 @@ namespace peg
 
                 cap_begin = cap_end = 0;
                 base = level = 0;
+
+                prev_lines = 0;
+                lines.clear();
+                error_pos = 0;
+                error_info = "";
+                in_lah = 0;
             }
 
             // Get last captured text
             std::string text() const { return ibuf.substr(cap_begin, cap_end - cap_begin); }
-        };
+
+            // Set error info
+            void set_error(const char *error) 
+            { 
+                if ( in_lah || pos < error_pos )
+                    return;
+
+                if ( pos  > error_pos )
+                {
+                    error_pos = pos;
+                    error_info = error;
+                }
+                else  // pos == error_pos
+                    error_info += error;
+                error_info += ' ';
+            }
+
+            // Get error info
+            std::string get_error() const
+            { 
+                unsigned line = prev_lines + 1;
+                unsigned nlines = lines.size();
+                if ( nlines )
+                    for ( auto iter = lines.rbegin() ; nlines ; iter++, nlines-- )
+                        if ( *iter <= error_pos )
+                        {
+                            line += nlines;
+                            break;
+                        }
+
+                char buf[200];
+                std::sprintf(buf,"Line %u\nExpecting ", line);
+                return buf + error_info + "\nFound " + ibuf.substr(error_pos, ERRORLEN) + '\n';
+            }
+
+         };
 
         // Value stack 
         template <typename T>
@@ -446,14 +508,19 @@ namespace peg
             unsigned size() const { return siz; }
             bool parse(details::matcher &m) const 
             { 
+                bool r;
+                m.begin_lah();
                 details::matcher::mark mk;
                 m.set_mark(mk);
                 if ( exp->parse(m) )
                 {
                     m.go_mark(mk);
-                    return !invert;
-                } 
-                return invert;
+                    r = !invert;
+                }
+                else
+                    r = invert;
+                m.end_lah();
+                return r;
             }
 #ifdef PEG_DEBUG
             void visit(unsigned &cons) const 
@@ -727,6 +794,8 @@ namespace peg
         // The root of this rule's expression tree
         ExprPtr root;
 
+        const char *label;  // for error reporting
+
         // A rule expression is a structure that holds a reference to the rule. 
         // This indirection allows rules to refer to other rules before they are defined.
         struct RuleExpr : Expression
@@ -783,7 +852,7 @@ namespace peg
     public:
 
         // Default constructor. No copying.
-        Rule() : Expr(new RuleExpr(*this)) { }
+        Rule(const char *lbl = nullptr) : Expr(new RuleExpr(*this)), label(lbl) { }
         Rule(const Rule &) = delete;
 
         // Assign from an expression.
@@ -809,6 +878,8 @@ namespace peg
             unsigned base = m.get_base();
             m.set_base(m.get_level());
             bool r = root->parse(m);
+            if ( label && !r )
+                m.set_error(label);
             m.set_base(base);
             return r;
         }
@@ -830,30 +901,44 @@ namespace peg
 #endif
     };
 
+    namespace details
+    {
+        class parser
+        {
+            Rule &__start;
+
+       public:
+
+            details::matcher __m;
+
+            // Construct with starting rule and input stream
+            parser(Rule &r, std::istream &in = std::cin) : __start(r), __m(in) { }
+
+            // Parsing methods
+            bool parse() { return __start.parse(__m); }
+            void accept() { __m.accept(); }
+            void clear() { __m.clear(); }
+            std::string text() const { return __m.text(); }
+            std::string get_error() const { return __m.get_error(); } 
+
+    #ifdef PEG_DEBUG
+            // Grammar check
+            void check() const { __start.check(); }
+    #endif
+        };
+    }
+
     // Parser 
     template <typename T = void>
-    class Parser 
+    class Parser : public details::parser
     {
-        Rule &__start;
-        details::matcher __m;
         details::value_stack<T> __values;
 
    public:
 
         // Construct with starting rule and input stream
-        Parser(Rule &r, std::istream &in = std::cin) : __start(r), __m(in), __values(__m) { }
-        Parser(Rule &r, std::size_t capacity, std::istream &in = std::cin) : __start(r), __m(in), __values(__m, capacity) { }
-
-        // Parsing methods
-        bool parse() { return __start.parse(__m); }
-        void accept() { __m.accept(); }
-        void clear() { __m.clear(); }
-        std::string text() const { return __m.text(); }
-
-#ifdef PEG_DEBUG
-        // Grammar check
-        void check() const { __start.check(); }
-#endif
+        Parser(Rule &r, std::istream &in = std::cin) : details::parser(r, in), __values(__m) { }
+        Parser(Rule &r, std::size_t capacity, std::istream &in = std::cin) : details::parser(r, in), __values(__m, capacity) { }
 
         // Reference to a value stack slot
         T &val(std::size_t idx) { return __values[idx]; }
@@ -865,26 +950,11 @@ namespace peg
     };
 
     template < >
-    class Parser<void>
+    class Parser <void> : public details::parser
     {
-        Rule &__start;
-        details::matcher __m;
+    public:
 
-   public:
-
-        // Construct with starting rule and input stream
-        Parser(Rule &r, std::istream &in = std::cin) : __start(r), __m(in) { }
-
-        // Parsing methods
-        bool parse() { return __start.parse(__m); }
-        void accept() { __m.accept(); }
-        void clear() { __m.clear(); }
-        std::string text() const { return __m.text(); }
-
-#ifdef PEG_DEBUG
-        // Grammar check
-        void check() const { __start.check(); }
-#endif
+        using details::parser::parser;
     };
 
 } // namespace peg
@@ -898,6 +968,6 @@ namespace peg
 #define do_(...)            (peg::Do([&]{ __VA_ARGS__ }))  
 #define pa_(...)            (peg::Pred([&](bool &){ __VA_ARGS__ }))  
 #define pr_(...)            (peg::Pred([&](bool &__r){ __r = [&]()->bool{ __VA_ARGS__ }(); }))  
-#define if_(...)            (peg::Pred([&](bool &__r){ __r = (__VA_ARGS__); }))  
+#define if_(...)            (peg::Pred([&](bool &__r){ __r = (__VA_ARGS__); }))
 
 #endif

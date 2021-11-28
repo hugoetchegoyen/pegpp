@@ -65,6 +65,10 @@ Intcalc:
 
     (1 + 2) * 3 -> 9
 
+Intcalcerr:
+
+    The same calculator with error reporting using labeled rules.
+
 Numsum:
 
     An example to illustrate the use of a variant value stack.

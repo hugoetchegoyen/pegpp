@@ -1,7 +1,7 @@
 CXXFLAGS = -std=c++17 -Wall -O3
 LINK.o = $(CXX)
 
-all = intcalc varcalc username pal numsum
+all = intcalc varcalc username pal numsum intcalcerr
 
 .PHONY: all clean
 
@@ -11,6 +11,7 @@ clean:
 	rm $(all) *.o
 
 intcalc.o: peg.h
+intcalcerr.o: peg.h
 varcalc.o: peg.h
 username.o: peg.h
 pal.o: peg.h
