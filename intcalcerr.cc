@@ -16,7 +16,11 @@ class intcalc : public Parser<int>
     Rule ADD{"ADD"}, SUB{"SUB"}, MUL{"MUL"}, DIV{"DIV"};
     Rule calc, expression, term, factor;
 
+    bool eof{false};
+
 public:
+
+    bool at_eof() { return eof; }
 
     intcalc(istream &in = cin ) : Parser(calc, in)
     {
@@ -33,7 +37,10 @@ public:
         DIV         = '/' >> WS;
 
         // Calculator
-        calc        = WS >> expression              do_( cout << val(1) << endl; )
+        calc        = WS >> (
+                          (!Any())                  do_( eof = true; )
+                        | expression                do_( cout << val(1) << endl; )
+                        )
                     ;
         expression  = term >> *(    
                           ADD >> term               do_( val(0) += val(2); )
@@ -56,7 +63,11 @@ int main()
     intcalc calc;
     
     while ( calc.parse() )
-        calc.accept();
+        if ( calc.at_eof() )
+            return 0;
+        else
+            calc.accept();
+
     cerr << calc.get_error() << endl;
 }
 

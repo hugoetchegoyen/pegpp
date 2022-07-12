@@ -907,7 +907,7 @@ namespace peg
         {
             Rule &__start;
 
-       public:
+        public:
 
             details::matcher __m;
 
@@ -934,7 +934,7 @@ namespace peg
     {
         details::value_stack<T> __values;
 
-   public:
+    public:
 
         // Construct with starting rule and input stream
         Parser(Rule &r, std::istream &in = std::cin) : details::parser(r, in), __values(__m) { }
