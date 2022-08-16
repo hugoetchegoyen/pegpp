@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
                     | chr 
                     ;
 
-            chr     = Any()--               pa_( val(0) = text(); std::this_thread::sleep_for(100ms); )     
+            chr     = Any()--               pa_( val(0) = text(); this_thread::sleep_for(100ms); )     
                                                                         do_( val(0) = text(); )
                     ;       
         }
