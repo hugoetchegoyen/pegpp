@@ -22,6 +22,7 @@ namespace peg
 {
     class Expr;
     class Rule;
+    template <typename T> class Parser;
 
     namespace details
     {
@@ -56,6 +57,7 @@ namespace peg
             friend class peg::Rule;
             template <typename T> friend class value_stack;
             friend class parser;
+            template <typename T> friend class peg::Parser;
 
             // Types
             class char_class  
@@ -154,6 +156,38 @@ namespace peg
                 unsigned begin, end, base;
             };
 
+            // Memo key
+            struct memo_key
+            {
+                uintptr_t rule;
+                unsigned pos;
+                unsigned base;
+                unsigned in_lah;
+                
+                bool operator<(const memo_key &other) const 
+                { 
+                    if ( rule != other.rule )
+                        return rule < other.rule;
+                    if ( pos != other.pos )
+                        return pos < other.pos;
+                    if ( base != other.base )
+                        return base < other.base;
+                    return in_lah < other.in_lah; 
+                }
+            };
+
+            // Memo state
+            struct memo_state
+            {
+                bool found, result;
+                unsigned pos, cap_begin, cap_end, actpos;
+                vect<action> actions;
+                
+                virtual ~memo_state() = default;
+                virtual void save_extra() { }
+                virtual void restore_extra() { }
+            };
+
             // Properties
             std::istream &in;
             std::string ibuf;
@@ -176,9 +210,15 @@ namespace peg
             std::string error_info;
             unsigned in_lah = 0;
 
+            std::map<memo_key, memo_state *> memo;
+
+            // These are overridden by use_vs() for parsers with value stack
+            std::function<memo_state *()> memo_alloc = [ ] { return new memo_state; };
+            bool use_base = false;
+
            // Construct from an std::istream, default is std::cin.
             matcher(std::istream &is = std::cin) : in(is) { actions.reserve(ACTSIZE); }
-            ~matcher() { delete[] buf; }
+            ~matcher() { delete[] buf; memo_clear(); }
             matcher(const matcher &) = delete;                  // not copyable
             matcher &operator=(const matcher &) = delete;       // not assignable
 
@@ -321,7 +361,7 @@ namespace peg
             void set_level(unsigned n) { level = n; }
 
             unsigned get_base() const { return base; }
-            void set_base(unsigned n) { base = n; }
+            void set_base(unsigned n) { if ( use_base ) base = n; }
 
             // Capture text
             unsigned begin_capture() const { return pos; }
@@ -331,7 +371,59 @@ namespace peg
             void begin_lah() { in_lah++; }
             void end_lah() { in_lah--; }
 
-            // Execute scheduled actions and consume matched input
+            // Set state allocator and enable use of base for parsers with value stack
+            void use_vs(const std::function<memo_state *()> &alloc) { memo_alloc = alloc; use_base = true; }
+
+            // Find a previously saved state or create a new one.
+            // If found, restore next state. Otherwise create a new state to be saved after successful parsing.
+            memo_state *memo_lookup(const Rule *rule)
+            {
+                memo_key key { reinterpret_cast<uintptr_t>(rule), pos, base, in_lah };
+                memo_state *ptr = memo[key];
+
+                if ( ptr )
+                {
+                    ptr->found = true;
+                    if ( ptr->result )
+                    {
+                        pos = ptr->pos;
+                        cap_begin = ptr->cap_begin;
+                        cap_end = ptr->cap_end;
+                        for ( const auto &a : ptr->actions )
+                            actions[actpos++] = a;
+                        ptr->restore_extra();
+                    }
+                } 
+                else 
+                {
+                    memo[key] = ptr = memo_alloc(); 
+                    ptr->found = false;
+                    ptr->actpos = actpos;
+                }
+
+                return ptr;
+            }
+
+            // Save state after successful parsing
+            void memo_save(memo_state *ptr)
+            {
+                ptr->pos = pos;
+                ptr->cap_begin = cap_begin;
+                ptr->cap_end = cap_end;
+                for ( unsigned i = ptr->actpos ; i < actpos ; i++ )
+                    ptr->actions.push_back(actions[i]);
+                ptr->save_extra();
+            } 
+
+            // Clear memoized data
+            void memo_clear()
+            {
+                for ( auto &[key, ptr] : memo )
+                    delete ptr;
+                memo.clear();
+            }
+
+            // Execute scheduled actions and consume matched input, clear memo
             void accept() 
             { 
                 for ( unsigned i = 0 ; i < actpos ; i++ )
@@ -356,9 +448,11 @@ namespace peg
                 error_pos = 0;
                 error_info = "";
                 in_lah = 0;
+
+                memo_clear();
             } 
 
-            // Discard actions and input
+            // Discard actions and input, clear memo
             void clear() 
             { 
                 actpos = 0;
@@ -374,6 +468,8 @@ namespace peg
                 error_pos = 0;
                 error_info = "";
                 in_lah = 0;
+
+                memo_clear();
             }
 
             // Get last captured text
@@ -412,7 +508,6 @@ namespace peg
                 std::sprintf(buf,"Line %u\nExpecting ", line);
                 return buf + error_info + "\nFound " + ibuf.substr(error_pos, ERRORLEN) + '\n';
             }
-
          };
 
         // Value stack 
@@ -794,7 +889,8 @@ namespace peg
         // The root of this rule's expression tree
         ExprPtr root;
 
-        const char *label;  // for error reporting
+        const char *label;      // for error reporting
+        bool memoize;           // memoize parsing results
 
         // A rule expression is a structure that holds a reference to the rule. 
         // This indirection allows rules to refer to other rules before they are defined.
@@ -849,10 +945,26 @@ namespace peg
         }
 #endif
 
+        bool parse_root(details::matcher &m) const 
+        { 
+            if ( !memoize )
+                return root->parse(m);
+
+            auto ptr = m.memo_lookup(this);
+            if ( ptr->found )
+                return ptr->result;
+            if ( (ptr->result = root->parse(m)) )
+                m.memo_save(ptr);
+            return ptr->result;
+        }
+
     public:
 
-        // Default constructor. No copying.
-        Rule(const char *lbl = nullptr) : Expr(new RuleExpr(*this)), label(lbl) { }
+        // Default constructor..
+        Rule(const char *lbl = nullptr) : Expr(new RuleExpr(*this)), label(lbl), memoize(false) { }
+        // Memoizing constructor
+        Rule(bool memoize, const char *lbl = nullptr) : Expr(new RuleExpr(*this)), label(lbl), memoize(memoize) { }
+        // No copying
         Rule(const Rule &) = delete;
 
         // Assign from an expression.
@@ -877,7 +989,7 @@ namespace peg
                 throw bad_rule("Uninitialized rule");
             unsigned base = m.get_base();
             m.set_base(m.get_level());
-            bool r = root->parse(m);
+            bool r = parse_root(m);
             if ( label && !r )
                 m.set_error(label);
             m.set_base(base);
@@ -907,9 +1019,11 @@ namespace peg
         {
             Rule &__start;
 
-        public:
+        protected:
 
             details::matcher __m;
+
+        public:
 
             // Construct with starting rule and input stream
             parser(Rule &r, std::istream &in = std::cin) : __start(r), __m(in) { }
@@ -934,11 +1048,26 @@ namespace peg
     {
         details::value_stack<T> __values;
 
+        // Extra state for memoizing val(0)
+        struct memo_state_extra : details::matcher::memo_state
+        {
+            T val0;
+            Parser *p;
+
+            memo_state_extra(Parser *p) : p(p) { }
+
+            virtual void save_extra() { val0 = p->val(0); }
+            virtual void restore_extra() { p->val(0) = val0; }
+        };
+
+        // Memo state allocator
+        std::function<details::matcher::memo_state *()> alloc = [ this ] { return new memo_state_extra{this}; };
+
     public:
 
         // Construct with starting rule and input stream
-        Parser(Rule &r, std::istream &in = std::cin) : details::parser(r, in), __values(__m) { }
-        Parser(Rule &r, std::size_t capacity, std::istream &in = std::cin) : details::parser(r, in), __values(__m, capacity) { }
+        Parser(Rule &r, std::istream &in = std::cin) : details::parser(r, in), __values(__m) { __m.use_vs(alloc); }
+        Parser(Rule &r, std::size_t capacity, std::istream &in = std::cin) : details::parser(r, in), __values(__m, capacity) { __m.use_vs(alloc); }
 
         // Reference to a value stack slot
         T &val(std::size_t idx) { return __values[idx]; }

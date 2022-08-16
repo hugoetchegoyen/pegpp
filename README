@@ -15,7 +15,7 @@ peg.h
 Requirements
 ------------
 
-C++17. Tested on Linux with gcc 8.2.0 through 10.3.0.
+C++17. Tested on Linux with gcc 8.2.0 through 11.2.0.
 
 Documentation
 -------------
@@ -55,6 +55,12 @@ Pal:
 
         aaa   -> aa
                  a
+
+Mpal:
+
+    A variant of pal that uses memoization if argc > 1 (i.e. if some argument is given
+    in the command line) and measures parsing time to demonstrate its benefits. 
+    See pegpp.pdf for details.
 
 Intcalc:
 
