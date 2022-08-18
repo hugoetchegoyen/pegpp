@@ -172,7 +172,7 @@ namespace peg
                         return pos < other.pos;
                     if ( base != other.base )
                         return base < other.base;
-                    return in_lah < other.in_lah; 
+                    return !in_lah && other.in_lah; 
                 }
             };
 
@@ -181,7 +181,7 @@ namespace peg
             {
                 bool found, result;
                 unsigned pos, cap_begin, cap_end, actpos;
-                vect<action> actions;
+                std::vector<action> actions;
                 
                 virtual ~memo_state() = default;
                 virtual void save_extra() { }
